@@ -1,125 +1,259 @@
-# Security Quote MVP
+# Security Quote
 
-Working name for a web app that helps security installers perform a site survey, dimension a CCTV solution, calculate costs/margins, and generate a commercial quote.
+Technical and commercial quoting platform for electronic security installers.
 
-## Stack
+Security Quote helps installers go from a site survey to a structured technical solution, bill of materials, project cost and commercial proposal.
 
-- Frontend: Next.js + TypeScript
-- Backend: FastAPI + Python
-- Database: MongoDB
-- Local DB option: Docker Compose
-- Data imports later: Pandas + OpenPyXL
+The initial MVP focuses on IP CCTV installations.
 
-## MVP v0.1
+---
 
-The first functional slice focuses on CCTV IP:
+## Product vision
 
-1. Capture basic customer/site requirements.
-2. Estimate:
-   - NVR channel count
-   - storage
-   - PoE port requirement
-   - cable quantity
-3. Build an initial BOM.
-4. Calculate internal cost, margin and sale price.
-5. Save projects in MongoDB.
+Electronic security installers often build quotations using a combination of:
 
-The technical calculation is deterministic. AI is intentionally not part of the critical calculation engine yet.
+- site notes
+- spreadsheets
+- supplier price lists
+- manual calculations
+- WhatsApp
+- previous quotations
+- technical experience
+
+Security Quote aims to centralize this workflow.
+
+The system guides the installer through the site survey and converts project requirements into a structured technical and commercial solution.
+
+The long-term workflow is:
+
+Site Survey
+→ Technical Requirements
+→ Engineering Engine
+→ Bill of Materials
+→ Supplier Pricing
+→ Project Cost
+→ Commercial Proposal
+
+---
+
+## Current MVP
+
+The current version includes a guided CCTV site survey covering:
+
+- customer and site information
+- camera requirements
+- indoor/outdoor cameras
+- resolution
+- PoE / Wi-Fi connectivity
+- recording retention
+- recording hours per day
+- cabling estimates
+- infrastructure requirements
+- extraordinary work
+- additional materials
+- labor cost
+- commercial margin
+
+The system currently calculates:
+
+- required NVR capacity
+- estimated storage
+- PoE requirements
+- switch size
+- estimated UTP cable
+- preliminary BOM
+- project cost
+- gross margin
+- sale price
+
+---
+
+## Camera configuration
+
+Camera requirements can be defined using global defaults for fast quotations.
+
+For more complex projects, individual cameras can override the global configuration.
+
+Example:
+
+C1 - Entrance - Outdoor - Bullet - 8 MP - PoE - 42 m  
+C2 - Patio - Outdoor - Turret - 4 MP - PoE - 31 m  
+C3 - Cash register - Indoor - Dome - 4 MP - PoE - 12 m
+
+This model will later allow cameras to be associated with floor plans, products, suppliers and installation points.
+
+---
+
+## Engineering philosophy
+
+Critical calculations should be:
+
+- deterministic
+- explainable
+- auditable
+- reproducible
+
+AI should not silently make critical engineering decisions.
+
+AI may later be used to:
+
+- interpret installer notes
+- structure customer requirements
+- assist during site surveys
+- generate technical descriptions
+- generate commercial proposals
+- suggest observations
+
+The installer remains responsible for validating the technical solution.
+
+---
+
+## Architecture
+
+Frontend:
+- Next.js
+- TypeScript
+
+Backend:
+- FastAPI
+- Python
+
+Database:
+- MongoDB
+
+Future integrations:
+- supplier price lists
+- Excel / CSV imports
+- proposal generation
+- project plans
+- AI assistance
+
+Architecture:
+
+Installer
+→ Next.js Web Application
+→ FastAPI
+→ Engineering / Pricing Engine
+→ MongoDB
+
+---
 
 ## Project structure
 
-```text
-security-quote-mvp/
+security-quote/
 ├── backend/
-│   └── app/
+│   ├── app/
+│   └── tests/
+│
 ├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   └── types/
+│
 ├── docs/
-├── docker-compose.yml
+│   ├── product.md
+│   ├── architecture.md
+│   ├── roadmap.md
+│   ├── quote-rules.md
+│   └── decisions.md
+│
 ├── .env.example
+├── .gitignore
 └── README.md
-```
 
-## 1. MongoDB
+---
 
-### Option A — local with Docker
+## Running locally
 
-```bash
-docker compose up -d
-```
+### Backend
 
-This exposes MongoDB on `localhost:27017`.
-
-### Option B — MongoDB Atlas
-
-Set `MONGODB_URI` in `backend/.env`.
-
-## 2. Backend
-
-```bash
-cd backend
+From `/backend`:
 
 python -m venv .venv
 
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
+Activate the virtual environment on Windows:
 
-# macOS/Linux
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
+
+Install dependencies:
 
 pip install -r requirements.txt
 
-copy .env.example .env
-# macOS/Linux: cp .env.example .env
+Start FastAPI:
 
 uvicorn app.main:app --reload
-```
 
-API:
-- http://localhost:8000
-- Swagger: http://localhost:8000/docs
-- Health: http://localhost:8000/api/v1/health
+Backend:
 
-## 3. Frontend
+http://localhost:8000
 
-In another terminal:
+API documentation:
 
-```bash
-cd frontend
+http://localhost:8000/docs
+
+### Frontend
+
+From `/frontend`:
+
 npm install
 
-copy .env.example .env.local
-# macOS/Linux: cp .env.example .env.local
-
 npm run dev
-```
 
-Open:
-- http://localhost:3000
+Frontend:
 
-## First manual test
+http://localhost:3000
 
-On the home page, enter for example:
+---
 
-- Cameras: 8
-- Outdoor cameras: 3
-- Resolution: 4 MP
-- Retention: 30 days
-- Average cable per camera: 25 m
-- Margin: 35%
+## Environment variables
 
-The frontend calls the FastAPI quote engine and renders the proposed solution.
+Environment variables must not be committed to the repository.
 
-## GitHub
+Use `.env.example` as reference and create local `.env` / `.env.local` files when required.
 
-Once the project runs locally:
+Never commit:
 
-```bash
-git init
-git add .
-git commit -m "Initial CCTV quote MVP scaffold"
-git branch -M main
-git remote add origin <YOUR_GITHUB_REPOSITORY_URL>
-git push -u origin main
-```
+- credentials
+- API keys
+- MongoDB credentials
+- supplier credentials
+- production secrets
 
-Keep the repo private while the product is still being defined.
+---
+
+## Roadmap
+
+Current:
+
+Site survey wizard
+→ Camera configuration
+→ CCTV engineering engine
+
+Next:
+
+Individual camera engineering
+→ Product catalog
+→ Supplier catalogs
+→ Supplier price comparison
+→ Detailed BOM
+→ Commercial proposal
+→ PDF / shareable proposal
+→ Site plan
+→ AI-assisted survey
+
+Future verticals:
+
+- Access Control
+- Intrusion Alarms
+- Intercom
+- Networking / Wi-Fi
+- Fire Detection
+
+---
+
+## Status
+
+Early MVP / active development.
+
+The application is currently intended for internal testing and validation with electronic security installers.

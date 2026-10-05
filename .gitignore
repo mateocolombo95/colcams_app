@@ -26,3 +26,6 @@ Thumbs.db
 
 # Mongo
 data/db/
+
+
+*.code-workspace
