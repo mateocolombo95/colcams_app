@@ -1,14 +1,16 @@
-﻿import type { QuoteEstimate, Survey } from "../types/quote";
+import type { CameraRequirement, QuoteEstimate, Survey } from "../types/quote";
+import CameraDetails from "./cameras/CameraDetails";
 
 export const money = (value: number) => "$ " + value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const costNotice = "El motor todavía no incluye precios de catálogo para la BOM. El costo total suma únicamente materiales/equipos adicionales y mano de obra ingresados. Usá la misma moneda en ambos importes.";
 
-export default function QuoteResult({ estimate, survey, cameraCount }: { estimate: QuoteEstimate; survey: Survey; cameraCount: number }) {
+export default function QuoteResult({ estimate, survey, cameras }: { estimate: QuoteEstimate; survey: Survey; cameras: CameraRequirement[] }) {
   return <div className="result">
     <section className="card"><h2>Resumen del proyecto</h2><dl className="summary-grid">
       <div><dt>Cliente</dt><dd>{survey.client}</dd></div><div><dt>Sitio</dt><dd>{survey.site}</dd></div>
-      <div><dt>Tipo de sitio</dt><dd>{survey.siteType}</dd></div><div><dt>Cámaras</dt><dd>{cameraCount}</dd></div>
+      <div><dt>Tipo de sitio</dt><dd>{survey.siteType}</dd></div><div><dt>Cámaras</dt><dd>{cameras.length}</dd></div>
     </dl></section>
+    <CameraDetails cameras={cameras} />
     <section className="card"><h2>Diseño técnico</h2><dl className="summary-grid">
       <div><dt>NVR recomendado</dt><dd>{estimate.nvr_channels} canales</dd></div>
       <div><dt>Almacenamiento calculado</dt><dd>{estimate.storage_tb_raw} TB</dd></div>

@@ -37,3 +37,32 @@ export type Survey = {
   extras: string[];
   extraNotes: string;
 };
+
+export type CameraRequirement = {
+  id: string;
+  name: string;
+  location?: string;
+  environment: "indoor" | "outdoor";
+  formFactor: "turret" | "bullet" | "dome" | "other";
+  resolutionMp: 2 | 4 | 5 | 8;
+  connectivity: "poe" | "wifi";
+  distanceM: number;
+  notes?: string;
+  customized: boolean;
+};
+
+export type GlobalCameraDefaults = {
+  cameraCount: number;
+  outdoorCount: number;
+  resolutionMp: CameraRequirement["resolutionMp"];
+  connectivity: CameraRequirement["connectivity"];
+  distanceM: number;
+};
+
+export type CameraCalculation = {
+  payload: QuoteRequest;
+  warnings: string[];
+  individualDistances: boolean;
+  mixedResolutions: boolean;
+  mixedConnectivity: boolean;
+};
