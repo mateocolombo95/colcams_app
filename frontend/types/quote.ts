@@ -47,6 +47,8 @@ export type CameraRequirement = {
   resolutionMp: 2 | 4 | 5 | 8;
   connectivity: "poe" | "wifi";
   distanceM: number;
+  viewingRange: "near" | "medium" | "far" | "mixed";
+  targetDistanceM?: number;
   notes?: string;
   customized: boolean;
 };
@@ -57,6 +59,8 @@ export type GlobalCameraDefaults = {
   resolutionMp: CameraRequirement["resolutionMp"];
   connectivity: CameraRequirement["connectivity"];
   distanceM: number;
+  viewingRange: "near" | "medium" | "far" | "mixed";
+  targetDistanceM?: number;
 };
 
 export type CameraCalculation = {

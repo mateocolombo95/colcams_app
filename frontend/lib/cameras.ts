@@ -4,20 +4,23 @@ export const environmentLabels = { indoor: "Interior", outdoor: "Exterior" };
 export const formFactorLabels = { turret: "Turret", bullet: "Bullet", dome: "Dome", other: "Otro" };
 export const connectivityLabels = { poe: "PoE", wifi: "Wi-Fi" };
 
-export function getCameraDefaults(requirements: QuoteRequest): GlobalCameraDefaults {
+export function getCameraDefaults(requirements: QuoteRequest, visual: Pick<GlobalCameraDefaults, "viewingRange" | "targetDistanceM"> = { viewingRange: "near" }): GlobalCameraDefaults {
   return {
     cameraCount: requirements.camera_count,
     outdoorCount: requirements.outdoor_camera_count,
     resolutionMp: requirements.resolution_mp,
     connectivity: requirements.wired_poe ? "poe" : "wifi",
     distanceM: requirements.average_cable_m_per_camera,
+    viewingRange: visual.viewingRange, targetDistanceM: visual.targetDistanceM,
   };
 }
 
 export function validCameraDefaults(defaults: GlobalCameraDefaults): boolean {
   return Number.isInteger(defaults.cameraCount) && defaults.cameraCount >= 1 && defaults.cameraCount <= 64
     && Number.isInteger(defaults.outdoorCount) && defaults.outdoorCount >= 0 && defaults.outdoorCount <= defaults.cameraCount
-    && Number.isFinite(defaults.distanceM) && defaults.distanceM >= 0 && defaults.distanceM <= 500;
+    && Number.isFinite(defaults.distanceM) && defaults.distanceM >= 0 && defaults.distanceM <= 500
+    && Object.hasOwn(viewingRangeLabels, defaults.viewingRange)
+    && (defaults.targetDistanceM === undefined || (Number.isFinite(defaults.targetDistanceM) && defaults.targetDistanceM >= 0));
 }
 
 export function createCamera(index: number, defaults: GlobalCameraDefaults): CameraRequirement {
@@ -29,6 +32,7 @@ export function createCamera(index: number, defaults: GlobalCameraDefaults): Cam
     resolutionMp: defaults.resolutionMp,
     connectivity: defaults.connectivity,
     distanceM: defaults.distanceM,
+    viewingRange: defaults.viewingRange, targetDistanceM: defaults.targetDistanceM,
     customized: false,
   };
 }
@@ -42,7 +46,7 @@ export function syncCameras(cameras: CameraRequirement[], defaults: GlobalCamera
   });
 }
 
-export type QuoteConfiguration = { requirements: QuoteRequest; cameras: CameraRequirement[] };
+export type QuoteConfiguration = { requirements: QuoteRequest; cameras: CameraRequirement[]; defaults: GlobalCameraDefaults };
 type ConfigurationAction =
   | { type: "requirements"; patch: Partial<QuoteRequest> }
   | { type: "defaults"; defaults: GlobalCameraDefaults }
@@ -50,7 +54,8 @@ type ConfigurationAction =
   | { type: "resetCamera"; id: string };
 
 export function createQuoteConfiguration(requirements: QuoteRequest): QuoteConfiguration {
-  return { requirements, cameras: syncCameras([], getCameraDefaults(requirements)) };
+  const defaults = getCameraDefaults(requirements);
+  return { requirements, defaults, cameras: syncCameras([], defaults) };
 }
 
 export function quoteConfigurationReducer(state: QuoteConfiguration, action: ConfigurationAction): QuoteConfiguration {
@@ -58,7 +63,7 @@ export function quoteConfigurationReducer(state: QuoteConfiguration, action: Con
     return { ...state, cameras: state.cameras.map((camera) => camera.id === action.camera.id ? { ...action.camera, customized: true } : camera) };
   }
   if (action.type === "resetCamera") {
-    return { ...state, cameras: state.cameras.map((camera, index) => camera.id === action.id ? createCamera(index, getCameraDefaults(state.requirements)) : camera) };
+    return { ...state, cameras: state.cameras.map((camera, index) => camera.id === action.id ? createCamera(index, state.defaults) : camera) };
   }
   const patch: Partial<QuoteRequest> = action.type === "defaults" ? {
     camera_count: action.defaults.cameraCount,
@@ -68,7 +73,8 @@ export function quoteConfigurationReducer(state: QuoteConfiguration, action: Con
     average_cable_m_per_camera: action.defaults.distanceM,
   } : action.patch;
   const requirements = { ...state.requirements, ...patch };
-  return { requirements, cameras: syncCameras(state.cameras, getCameraDefaults(requirements)) };
+  const defaults = action.type === "defaults" ? action.defaults : getCameraDefaults(requirements, state.defaults);
+  return { requirements, defaults, cameras: syncCameras(state.cameras, defaults) };
 }
 
 // Keep the API's existing aggregate schema. Individual detail stays in the frontend.
@@ -95,4 +101,23 @@ export function adaptCameraRequirements(requirements: QuoteRequest, cameras: Cam
     },
     warnings, individualDistances, mixedConnectivity, mixedResolutions,
   };
+}
+
+export const viewingRangeLabels = { near: "Vista general / corta distancia", medium: "Distancia media", far: "Objetivo lejano", mixed: "Cercano y lejano" };
+// Review threshold, not an optical limit. No DORI calculation.
+const LONG_TARGET_DISTANCE_M = 20;
+export function getLensRecommendation(camera: Pick<CameraRequirement, "viewingRange" | "targetDistanceM">): { text: string; warnings: string[] } {
+  const texts = {
+    near: "Priorizar campo de visión amplio. Considerar lente angular, por ejemplo 2.8–4 mm.",
+    medium: "Buscar equilibrio entre cobertura y detalle. Considerar aproximadamente 4–6 mm o verificar según geometría.",
+    far: "Se requiere mayor detalle a distancia. Considerar lente más cerrado o cámara varifocal, por ejemplo 6–12 mm.",
+    mixed: "Se requiere cubrir zona cercana y distante. Evaluar cámara varifocal o cámaras separadas, ya que un único lente puede no resolver ambos objetivos correctamente.",
+  };
+  const warnings: string[] = [];
+  if (camera.viewingRange === "mixed") warnings.push("Los requerimientos de vista general y detalle a larga distancia pueden ser incompatibles en una única cámara. Evaluar cámara varifocal o una segunda cámara dedicada.");
+  if (camera.targetDistanceM !== undefined && camera.targetDistanceM >= LONG_TARGET_DISTANCE_M) {
+    if (camera.viewingRange === "far") warnings.push("Objetivo ubicado a larga distancia. Evitar seleccionar una cámara únicamente por resolución; verificar lente y nivel de detalle requerido.");
+    if (camera.viewingRange === "near") warnings.push("La distancia indicada parece elevada para una configuración de vista cercana. Revisar el requerimiento.");
+  }
+  return { text: texts[camera.viewingRange], warnings };
 }

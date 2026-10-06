@@ -254,6 +254,31 @@ Future verticals:
 
 ## Status
 
+El módulo de cámaras distingue distancia de cableado (`distanceM`) de distancia
+al punto de interés (`targetDistanceM`, opcional y no negativa). `viewingRange`
+registra vista cercana, media, lejana o ambas. Inicialmente usa vista cercana
+sin asumir una distancia. El reducer existente conserva los defaults en el
+frontend: las cámaras sin personalizar los heredan; guardar conserva todos los
+valores individuales y restablecer recupera los defaults actuales.
+
+`getLensRecommendation` en `frontend/lib/cameras.ts` ofrece orientaciones de
+2.8–4 mm, 4–6 mm, 6–12 mm/varifocal o evaluación de una segunda cámara.
+A partir de 20 m sugiere revisar los casos cercano y lejano; es un umbral
+de revisión modificable, no un límite óptico. El caso mixto siempre muestra
+una advertencia sin bloquear. No calcula DORI ni selecciona productos.
+Los campos nuevos permanecen en el estado del relevamiento y no se envían
+al backend ni se persisten. El request de estimación conserva su esquema.
+
+Desde `frontend`, ejecutar `npm test` (Node con soporte de eliminación de
+tipos, validado con Node 24) y `npm run build`.
+
+`frontend/tests/wizard.browser.cjs` verifica los siete pasos, overrides,
+payload y resultado en escritorio y móvil con API simulada. No instala
+dependencias: necesita una instalación existente de Playwright, indicada
+mediante `PLAYWRIGHT_MODULE` si no está en la resolución habitual de Node.
+Con el servidor iniciado, ejecutar `node tests/wizard.browser.cjs` desde
+`frontend`; `WIZARD_URL` permite cambiar la URL (default: localhost:3100).
+
 Early MVP / active development.
 
 The application is currently intended for internal testing and validation with electronic security installers.

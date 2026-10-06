@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
 import { estimateQuote } from "../lib/api";
-import { adaptCameraRequirements, createQuoteConfiguration, getCameraDefaults, quoteConfigurationReducer } from "../lib/cameras";
+import { adaptCameraRequirements, createQuoteConfiguration, quoteConfigurationReducer } from "../lib/cameras";
 import type { CameraRequirement, QuoteEstimate, QuoteRequest, Survey } from "../types/quote";
 import QuoteResult, { costNotice, money } from "./QuoteResult";
 import CameraDefaults from "./cameras/CameraDefaults";
@@ -17,7 +17,7 @@ type NumericKey = Exclude<keyof QuoteRequest, "wired_poe" | "resolution_mp">;
 export default function QuoteWizard() {
   const [step, setStep] = useState(0);
   const [survey, setSurvey] = useState<Survey>({ client: "", site: "", siteType: "Casa", notes: "", cabling: "Nuevo", technicalNotes: "", extras: [], extraNotes: "" });
-  const [{ requirements, cameras }, dispatch] = useReducer(quoteConfigurationReducer, {
+  const [{ requirements, cameras, defaults }, dispatch] = useReducer(quoteConfigurationReducer, {
     camera_count: 8, outdoor_camera_count: 3, resolution_mp: 4, retention_days: 30,
     recording_hours_per_day: 24, average_cable_m_per_camera: 25, wired_poe: true,
     extra_material_cost: 0, labor_cost: 0, margin_percent: 35,
@@ -90,7 +90,7 @@ export default function QuoteWizard() {
             {notes("notes", "Notas del relevamiento")}
           </div><p className="note">Los datos del sitio se conservan durante este relevamiento. Todavía no se crea ni guarda un proyecto.</p></>}
           {step === 1 && <>
-            <CameraDefaults defaults={getCameraDefaults(requirements)} onChange={(defaults) => dispatch({ type: "defaults", defaults })} />
+            <CameraDefaults defaults={defaults} onChange={(defaults) => dispatch({ type: "defaults", defaults })} />
             <section className="camera-advanced" aria-labelledby="camera-advanced-title">
               <h3 id="camera-advanced-title">Configuración avanzada por cámara</h3>
               <p className="muted">Todas las cámaras usarán la configuración general salvo que personalices alguna.</p>

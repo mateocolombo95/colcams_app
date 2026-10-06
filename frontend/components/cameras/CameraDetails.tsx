@@ -1,4 +1,5 @@
-import { connectivityLabels, environmentLabels, formFactorLabels } from "../../lib/cameras";
+import CameraLensRecommendation from "./CameraLensRecommendation";
+import { connectivityLabels, environmentLabels, formFactorLabels, viewingRangeLabels } from "../../lib/cameras";
 import type { CameraRequirement } from "../../types/quote";
 
 export default function CameraDetails({ cameras }: { cameras: CameraRequirement[] }) {
@@ -11,8 +12,10 @@ export default function CameraDetails({ cameras }: { cameras: CameraRequirement[
         <div><dt>Formato</dt><dd>{formFactorLabels[camera.formFactor]}</dd></div>
         <div><dt>Resolución</dt><dd>{camera.resolutionMp} MP</dd></div>
         <div><dt>Conexión</dt><dd>{connectivityLabels[camera.connectivity]}</dd></div>
-        <div><dt>Distancia</dt><dd>{camera.distanceM} m</dd></div>
-      </dl>
+        <div><dt>Distancia de cableado</dt><dd>{camera.distanceM} m</dd></div>
+        <div><dt>Objetivo de visualización</dt><dd>{viewingRangeLabels[camera.viewingRange]}</dd></div>
+        <div><dt>Distancia al punto de interés</dt><dd>{camera.targetDistanceM === undefined ? "Sin indicar" : camera.targetDistanceM + " m"}</dd></div>
+      </dl><CameraLensRecommendation camera={camera} />
       {camera.notes && <p className="muted small camera-notes">{camera.notes}</p>}
     </article>)}</div>
   </section>;

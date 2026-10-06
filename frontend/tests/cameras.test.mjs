@@ -1,5 +1,47 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { getLensRecommendation } from "../lib/cameras.ts";
+
+test("visual inheritance, overrides, resize, requirement edits and reset", () => {
+  const change = (state, values) => quoteConfigurationReducer(state, { type: "defaults", defaults: { ...state.defaults, ...values } });
+  let state = change(initial(), { viewingRange: "far", targetDistanceM: 28 });
+  assert.ok(state.cameras.every(c => c.viewingRange === "far" && c.targetDistanceM === 28));
+  state = save(state, 0, { viewingRange: "mixed", targetDistanceM: 42 });
+  state = change(state, { viewingRange: "medium", targetDistanceM: 8 });
+  assert.equal(state.cameras[0].viewingRange, "mixed");
+  assert.equal(state.cameras[0].targetDistanceM, 42);
+  assert.ok(state.cameras.slice(1).every(c => c.viewingRange === "medium" && c.targetDistanceM === 8));
+  state = patch(state, { camera_count: 9, retention_days: 15 });
+  assert.equal(state.cameras[8].viewingRange, "medium");
+  assert.equal(state.cameras[8].targetDistanceM, 8);
+  state = quoteConfigurationReducer(state, { type: "resetCamera", id: "C1" });
+  assert.equal(state.cameras[0].viewingRange, "medium");
+  assert.equal(state.cameras[0].targetDistanceM, 8);
+  assert.equal(state.cameras[0].customized, false);
+  state = change(state, { targetDistanceM: undefined });
+  assert.ok(state.cameras.every(c => c.targetDistanceM === undefined));
+});
+
+test("target distance is optional, finite, nonnegative and independent of cable/API", () => {
+  const state = initial();
+  for (const targetDistanceM of [-1, NaN, Infinity]) assert.equal(validCameraDefaults({ ...state.defaults, targetDistanceM }), false);
+  for (const targetDistanceM of [undefined, 0, 0.5, 1000]) assert.equal(validCameraDefaults({ ...state.defaults, targetDistanceM }), true);
+  const customized = save(state, 0, { viewingRange: "far", targetDistanceM: 400 });
+  assert.equal(customized.cameras[0].distanceM, 25);
+  assert.deepEqual(adaptCameraRequirements(customized.requirements, customized.cameras).payload, requirements);
+});
+
+test("four recommendations and review threshold warnings", () => {
+  for (const [viewingRange, text] of [["near", "angular"], ["medium", "4–6 mm"], ["far", "6–12 mm"], ["mixed", "separadas"]]) {
+    assert.ok(getLensRecommendation({ viewingRange }).text.includes(text));
+  }
+  assert.ok(getLensRecommendation({ viewingRange: "mixed" }).warnings[0].includes("segunda cámara"));
+  for (const viewingRange of ["near", "far"]) {
+    assert.equal(getLensRecommendation({ viewingRange, targetDistanceM: 19.9 }).warnings.length, 0);
+    assert.equal(getLensRecommendation({ viewingRange, targetDistanceM: 20 }).warnings.length, 1);
+  }
+  assert.equal(getLensRecommendation({ viewingRange: "medium", targetDistanceM: 100 }).warnings.length, 0);
+});
 import { adaptCameraRequirements, createQuoteConfiguration, getCameraDefaults, quoteConfigurationReducer, syncCameras, validCameraDefaults } from "../lib/cameras.ts";
 
 const requirements = {
@@ -51,7 +93,7 @@ test("reset restores the latest defaults, position-based environment and inherit
   let state = save(initial(), 0, { location: "Patio", notes: "Nota", environment: "indoor", resolutionMp: 8, distanceM: 42 });
   state = patch(state, { resolution_mp: 5, average_cable_m_per_camera: 30 });
   state = quoteConfigurationReducer(state, { type: "resetCamera", id: "C1" });
-  assert.deepEqual(state.cameras[0], { id: "C1", name: "Cámara 1", environment: "outdoor", formFactor: "turret", resolutionMp: 5, connectivity: "poe", distanceM: 30, customized: false });
+  assert.deepEqual(state.cameras[0], { id: "C1", name: "Cámara 1", environment: "outdoor", formFactor: "turret", resolutionMp: 5, connectivity: "poe", distanceM: 30, viewingRange: "near", targetDistanceM: undefined, customized: false });
   state = patch(state, { resolution_mp: 2 });
   assert.equal(state.cameras[0].resolutionMp, 2);
 });
