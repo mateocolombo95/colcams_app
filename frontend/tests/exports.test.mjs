@@ -34,3 +34,13 @@ test("download errors are comprehensible; successful XLSX returns a blob", async
     assert.equal((await fetchMaterialsExcel({})).size, 4);
   } finally { globalThis.fetch = original; }
 });
+
+test("export snapshot preserves the backend alarm result and unified BOM without calculating again", () => {
+  const alarm = { zonesRequired: 10, selectedPanelZones: 16, configuration: { enabled: true } };
+  const bom = [{ category: "alarm", description: "Panel de alarma 16 zonas", quantity: 1, unit: "un" }, { category: "alarm_cable", description: "Cable de alarma", quantity: 230, unit: "m" }];
+  const estimate = { alarm, bom };
+  const snapshot = createExportSnapshot({ estimate, survey: {}, requirements: {}, cameras: [] });
+  assert.equal(snapshot.estimate.alarm, alarm);
+  assert.equal(snapshot.estimate.bom, bom);
+  assert.equal(snapshot.estimate.bom[1].unit, "m");
+});

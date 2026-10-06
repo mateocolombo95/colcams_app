@@ -1,9 +1,17 @@
 import type { CameraRequirement, QuoteEstimate, QuoteRequest, Survey } from "../types/quote";
 import CameraDetails from "./cameras/CameraDetails";
 import ProjectExport from "./exports/ProjectExport";
+import AlarmDetails from "./alarm/AlarmDetails";
 
 export const money = (value: number) => "$ " + value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const costNotice = "El motor todavía no incluye precios de catálogo para la BOM. El costo total suma únicamente materiales/equipos adicionales y mano de obra ingresados. Usá la misma moneda en ambos importes.";
+
+const materialCategoryLabels: Record<string, string> = {
+  camera: "Cámaras", nvr: "Grabación", storage: "Almacenamiento", switch: "Red", cable: "Cableado CCTV",
+  alarm_panel: "Panel de alarma", alarm_expander: "Expansión de alarma", alarm_keypad: "Teclados de alarma",
+  alarm_sensor: "Sensores de alarma", alarm_siren: "Sirenas de alarma", alarm_communication: "Comunicación de alarma",
+  alarm_power: "Alimentación de alarma", alarm_battery: "Respaldo de alarma", alarm_cable: "Cableado de alarma", alarm_accessories: "Accesorios de alarma",
+};
 
 export default function QuoteResult({ estimate, survey, cameras, requirements }: { estimate: QuoteEstimate; survey: Survey; cameras: CameraRequirement[]; requirements: QuoteRequest }) {
   return <div className="result">
@@ -13,6 +21,7 @@ export default function QuoteResult({ estimate, survey, cameras, requirements }:
       <div><dt>Tipo de sitio</dt><dd>{survey.siteType}</dd></div><div><dt>Cámaras</dt><dd>{cameras.length}</dd></div>
     </dl></section>
     <CameraDetails cameras={cameras} />
+    {estimate.alarm && <AlarmDetails estimate={estimate.alarm} />}
     <section className="card"><h2>Diseño técnico</h2><dl className="summary-grid">
       <div><dt>NVR recomendado</dt><dd>{estimate.nvr_channels} canales</dd></div>
       <div><dt>Almacenamiento calculado</dt><dd>{estimate.storage_tb_raw} TB</dd></div>
@@ -23,7 +32,7 @@ export default function QuoteResult({ estimate, survey, cameras, requirements }:
     </dl></section>
     <section className="card"><h2>BOM · Lista de materiales</h2><div className="table-scroll"><table>
       <thead><tr><th scope="col">Categoría</th><th scope="col">Descripción</th><th scope="col">Cantidad</th></tr></thead>
-      <tbody>{estimate.bom.map((item, index) => <tr key={index}><td>{item.category}</td><td>{item.description}</td><td>{item.quantity}</td></tr>)}</tbody>
+      <tbody>{estimate.bom.map((item, index) => <tr key={index}><td>{materialCategoryLabels[item.category] ?? item.category}</td><td>{item.description}{item.observations && <p className="muted small">{item.observations}</p>}</td><td>{item.quantity}{item.unit ? ` ${item.unit}` : ""}</td></tr>)}</tbody>
     </table></div></section>
     <section className="card"><h2>Comercial</h2><dl className="summary-grid">
       <div><dt>Costo total</dt><dd>{money(estimate.total_cost)}</dd></div><div><dt>Margen bruto</dt><dd>{estimate.margin_percent}%</dd></div>

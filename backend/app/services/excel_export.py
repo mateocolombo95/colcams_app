@@ -66,6 +66,34 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
         ("Mano de obra", estimate.labor_cost), ("Costo estimado", estimate.total_cost),
         ("Margen", estimate.margin_percent / 100), ("Precio de venta", estimate.sale_price),
     ]
+    alarm = estimate.alarm
+    if alarm is not None:
+        config = alarm.configuration
+        system_labels = {"wired": "Cableado", "wireless": "Inalámbrico", "hybrid": "Híbrido"}
+        communication_labels = {"ethernet": "Ethernet / IP", "wifi": "Wi-Fi", "lte": "LTE / 4G", "telephone": "Línea telefónica"}
+        rows.extend([
+            ("Sistema de alarma", system_labels[alarm.systemType]),
+            ("Dispositivos de alarma", alarm.deviceCount),
+            ("Zonas requeridas", alarm.zonesRequired),
+            ("Reserva de ampliación de alarma (%)", alarm.expansionReservePercent),
+            ("Zonas con reserva", alarm.zonesWithReserve),
+            ("Panel recomendado (zonas)", alarm.recommendedPanelZones if alarm.recommendedPanelZones is not None else "Superior / revisión manual"),
+            ("Panel seleccionado (zonas)", alarm.selectedPanelZones if alarm.selectedPanelZones is not None else "Revisión manual"),
+            ("Panel modificado manualmente", "Sí" if alarm.panelOverridden else "No"),
+            ("Expansores de alarma", alarm.expanderCount),
+            ("Teclados de alarma", config.keypadCount),
+            ("Sirenas interiores", config.indoorSirens),
+            ("Sirenas exteriores", config.outdoorSirens),
+            ("Comunicación de alarma", " + ".join(communication_labels[c] for c in config.communications) or "Sin comunicación remota"),
+            ("Particiones de alarma", config.partitions),
+            ("Autonomía de alarma (h)", config.backupAutonomyHours),
+            ("Carga estimada de alarma (W)", alarm.estimatedLoadW),
+            ("Batería aproximada (Ah, 12 V)", alarm.batteryAhApprox),
+            ("Batería seleccionada (Ah, 12 V)", alarm.batteryAhSelected if alarm.batteryAhSelected is not None else "Superior / revisión manual"),
+            ("Fuente auxiliar de alarma", "Sí" if alarm.auxiliaryPowerRequired else "No"),
+            ("Supervisión anti-sabotaje", "Sí" if config.tamperRequired else "No"),
+            ("Cable estimado de alarma (m)", alarm.estimatedCableM),
+        ])
     for label, value in rows:
         if value is None or value == "":
             continue
@@ -79,14 +107,22 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
             cell.number_format = "yyyy-mm-dd"
     for warning in estimate.warnings:
         append_row(summary, ["Advertencia del resultado", warning])
+    if alarm is not None:
+        for warning in alarm.warnings:
+            append_row(summary, ["Advertencia de alarma", warning])
     append_row(summary, ["Alcance", "Estimación preliminar. Los costos no incluyen precios de catálogo. Las recomendaciones de lente requieren revisión técnica."])
     materials = workbook.create_sheet("Materiales")
     append_row(materials, ["Categoría", "Descripción", "Cantidad", "Unidad", "Observaciones"])
-    categories = {"camera": "Cámaras", "nvr": "Grabación", "storage": "Almacenamiento", "switch": "Red", "cable": "Cableado"}
+    categories = {
+        "camera": "Cámaras", "nvr": "Grabación", "storage": "Almacenamiento", "switch": "Red", "cable": "Cableado CCTV",
+        "alarm_panel": "Panel de alarma", "alarm_expander": "Expansión de alarma", "alarm_keypad": "Teclados de alarma",
+        "alarm_sensor": "Sensores de alarma", "alarm_siren": "Sirenas de alarma", "alarm_communication": "Comunicación de alarma",
+        "alarm_power": "Alimentación de alarma", "alarm_battery": "Respaldo de alarma", "alarm_accessories": "Accesorios de alarma", "alarm_cable": "Cableado de alarma",
+    }
     for item in estimate.bom:
         # Unit metadata is absent in the current BOM; only map known categories.
-        unit = "m" if item.category == "cable" else "un" if item.category in categories else None
-        append_row(materials, [categories.get(item.category, item.category), item.description, item.quantity, unit, "Estimado" if item.source == "engine" else None])
+        unit = item.unit or ("m" if item.category in {"cable", "alarm_cable"} else "un" if item.category in categories else None)
+        append_row(materials, [categories.get(item.category, item.category), item.description, item.quantity, unit, item.observations or ("Estimado" if item.source == "engine" else None)])
     cameras = workbook.create_sheet("Cámaras")
     append_row(cameras, ["ID", "Nombre", "Ubicación", "Ambiente", "Formato", "Resolución (MP)", "Conectividad", "Distancia de cableado (m)", "Objetivo de visualización", "Distancia al punto de interés (m)", "Recomendación preliminar de lente", "Notas"])
     ranges = {"near": "Vista general / corta distancia", "medium": "Distancia media", "far": "Objetivo lejano", "mixed": "Cercano y lejano"}
@@ -96,6 +132,15 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
     style_sheet(summary, [40, 85])
     style_sheet(materials, [22, 55, 15, 12, 35])
     style_sheet(cameras, [12, 25, 30, 16, 16, 18, 18, 24, 35, 30, 85, 45])
+    if alarm is not None:
+        alarm_sheet = workbook.create_sheet("Alarma")
+        append_row(alarm_sheet, ["Elemento", "Ubicación", "Tipo", "Conexión", "Cantidad", "Zona", "Observaciones"])
+        device_labels = {"pir_indoor": "Sensor PIR interior", "pir_outdoor": "Sensor PIR exterior", "magnetic_contact": "Contacto magnético", "beam": "Barrera infrarroja", "glass_break": "Detector de rotura de vidrio", "smoke": "Detector de humo", "gas": "Detector de gas", "flood": "Detector de inundación", "panic_button": "Pulsador de pánico", "other": "Otro"}
+        for device in alarm.devices:
+            append_row(alarm_sheet, [device.name, device.location, device_labels[device.type], "Cableado" if device.connection == "wired" else "Inalámbrico", device.quantity, device.zoneLabel, device.notes])
+        for warning in alarm.warnings:
+            append_row(alarm_sheet, ["Advertencia técnica", None, None, None, None, None, warning])
+        style_sheet(alarm_sheet, [30, 30, 35, 20, 15, 30, 90])
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()

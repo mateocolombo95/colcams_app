@@ -9,10 +9,12 @@ import CameraDefaults from "./cameras/CameraDefaults";
 import CameraList from "./cameras/CameraList";
 import CameraEditor from "./cameras/CameraEditor";
 import CameraCalculationNotes from "./cameras/CameraCalculationNotes";
+import AlarmConfigurator from "./alarm/AlarmConfigurator";
+import { createAlarmConfiguration } from "../lib/alarm";
 
-const steps = ["Cliente y sitio", "Cámaras", "Grabación", "Cableado e infraestructura", "Trabajos extraordinarios y extras", "Comercial", "Resultado"];
+const steps = ["Cliente y sitio", "Cámaras y alarma", "Grabación", "Cableado e infraestructura", "Trabajos extraordinarios y extras", "Comercial", "Resultado"];
 const extras = ["Albañilería", "Canalización", "Trabajo en altura", "Escalera especial / elevador", "Herrería", "Rack / gabinete", "UPS", "Monitor", "Sirena", "Otro"];
-type NumericKey = Exclude<keyof QuoteRequest, "wired_poe" | "resolution_mp">;
+type NumericKey = Exclude<keyof QuoteRequest, "wired_poe" | "resolution_mp" | "alarm">;
 
 export default function QuoteWizard() {
   const [step, setStep] = useState(0);
@@ -24,7 +26,11 @@ export default function QuoteWizard() {
   }, createQuoteConfiguration);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [editingCamera, setEditingCamera] = useState<CameraRequirement | null>(null);
-  const calculation = useMemo(() => adaptCameraRequirements(requirements, cameras), [requirements, cameras]);
+  const [alarm, setAlarm] = useState(createAlarmConfiguration);
+  const calculation = useMemo(() => {
+    const cctv = adaptCameraRequirements(requirements, cameras);
+    return { ...cctv, payload: alarm.enabled ? { ...cctv.payload, alarm } : cctv.payload };
+  }, [requirements, cameras, alarm]);
   const [estimate, setEstimate] = useState<QuoteEstimate | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,7 +78,7 @@ export default function QuoteWizard() {
   const recordingSummary = cameras.length + " cámaras · " + calculation.payload.resolution_mp + (calculation.mixedResolutions ? " MP máx. (mixtas)" : " MP") + " · " + requirements.retention_days + " días · " + requirements.recording_hours_per_day + " h/día";
 
   return <>
-    <header className="app-header"><div className="header-inner"><span className="brand-mark" aria-hidden="true">SQ</span><span className="brand">Security Quote</span><span className="header-label">Relevamiento CCTV</span></div></header>
+    <header className="app-header"><div className="header-inner"><span className="brand-mark" aria-hidden="true">SQ</span><span className="brand">Security Quote</span><span className="header-label">Relevamiento de seguridad</span></div></header>
     <main>
       <div className="intro"><p className="eyebrow">NUEVO RELEVAMIENTO</p><h1>De la visita a la propuesta</h1><p className="muted">Registrá los requisitos del sitio y calculá la solución técnica y comercial.</p></div>
       <nav className="progress-card" aria-label="Progreso del relevamiento">
@@ -99,6 +105,7 @@ export default function QuoteWizard() {
               {cameras.some((camera) => camera.customized) && <p className="muted small">Distribución con personalizaciones: {calculation.payload.outdoor_camera_count} exteriores · {cameras.length - calculation.payload.outdoor_camera_count} interiores.</p>}
             </section>
             <CameraCalculationNotes calculation={calculation} />
+            <AlarmConfigurator configuration={alarm} onChange={setAlarm} />
           </>}
           {step === 2 && <><p className="section-description">Indicá cuánto tiempo necesitás conservar las grabaciones.</p><div className="grid">
             {numberField("retention_days", "Días de retención", 1, 180)}
@@ -125,7 +132,7 @@ export default function QuoteWizard() {
         <CameraCalculationNotes calculation={calculation} />
         <div aria-live="polite" aria-busy={loading}>{loading && <div className="card loading" role="status">Calculando la solución técnica y comercial…</div>}</div>
         {error && <div className="error" role="alert">{error}</div>}
-        {estimate && <QuoteResult estimate={estimate} survey={survey} cameras={cameras} requirements={requirements} />}
+        {estimate && <QuoteResult estimate={estimate} survey={survey} cameras={cameras} requirements={calculation.payload} />}
         <div className="actions"><button type="button" className="secondary" onClick={() => { setError(""); setStep(5); }}>Volver y editar</button><button type="button" className="primary" disabled={loading} onClick={() => setAttempt((current) => current + 1)}>{loading ? "Calculando…" : "Recalcular"}</button></div>
       </>}
       {editingCamera && <CameraEditor camera={editingCamera} onSave={(camera) => dispatch({ type: "saveCamera", camera })} onReset={(id) => dispatch({ type: "resetCamera", id })} onClose={() => setEditingCamera(null)} />}

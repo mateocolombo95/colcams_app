@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.models.alarm import AlarmConfiguration, AlarmEstimate
+
 
 class CCTVRequirements(BaseModel):
     camera_count: int = Field(ge=1, le=64)
@@ -14,6 +16,7 @@ class CCTVRequirements(BaseModel):
     extra_material_cost: float = Field(default=0, ge=0)
     labor_cost: float = Field(default=0, ge=0)
     margin_percent: float = Field(default=35, ge=0, lt=95)
+    alarm: AlarmConfiguration | None = None
 
 
 class BOMItem(BaseModel):
@@ -23,6 +26,8 @@ class BOMItem(BaseModel):
     unit_cost: float = 0
     subtotal: float = 0
     source: str = "engine"
+    unit: str | None = None
+    observations: str | None = None
 
 
 class QuoteEstimate(BaseModel):
@@ -39,3 +44,4 @@ class QuoteEstimate(BaseModel):
     margin_percent: float
     sale_price: float
     warnings: list[str]
+    alarm: AlarmEstimate | None = None

@@ -1,4 +1,6 @@
-﻿export type QuoteRequest = {
+﻿import type { AlarmConfiguration, AlarmEstimate } from "./alarm";
+
+export type QuoteRequest = {
   camera_count: number;
   outdoor_camera_count: number;
   resolution_mp: 2 | 4 | 5 | 8;
@@ -9,6 +11,7 @@
   extra_material_cost: number;
   labor_cost: number;
   margin_percent: number;
+  alarm?: AlarmConfiguration;
 };
 
 export type QuoteEstimate = {
@@ -18,13 +21,14 @@ export type QuoteEstimate = {
   poe_ports_required: number;
   poe_switch_ports_selected: number | null;
   estimated_cable_m: number;
-  bom: { category: string; description: string; quantity: number; unit_cost: number; subtotal: number; source: string }[];
+  bom: { category: string; description: string; quantity: number; unit_cost: number; subtotal: number; source: string; unit?: string | null; observations?: string | null }[];
   equipment_cost: number;
   labor_cost: number;
   total_cost: number;
   margin_percent: number;
   sale_price: number;
   warnings: string[];
+  alarm?: AlarmEstimate | null;
 };
 
 export type Survey = {

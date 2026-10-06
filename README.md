@@ -254,6 +254,24 @@ Future verticals:
 
 ## Status
 
+### Alarma / Intrusión
+
+El paso de cámaras incorpora un subsistema opcional de alarma, desactivado por
+defecto, con relevamiento rápido y personalización avanzada. El motor vive en
+FastAPI; `alarm` es opcional en `POST /api/v1/quotes/estimate`. La previsualización
+usa `POST /api/v1/quotes/alarm/estimate` y el mismo motor. El resultado combina
+la BOM de CCTV y alarma sin precios nuevos. El Excel agrega **Alarma** solamente
+cuando está activa, y amplía **Resumen** y **Materiales** desde el resultado.
+
+Consultar [reglas y limitaciones de alarma](docs/alarm-rules.md) para zonas,
+overrides, expansión, consumos placeholder, cableado, batería y advertencias.
+No se agregan dependencias ni integración con servicios reales de monitoreo.
+
+Pruebas del módulo: `python -m pytest -q` desde `backend` y `npm test` desde
+`frontend`. `tests/alarm.browser.cjs` verifica el flujo completo contra una API
+local mediante `ALARM_API_URL`, un frontend indicado por `WIZARD_URL` y una
+instalación existente de Playwright (`PLAYWRIGHT_MODULE`).
+
 ### Exportar proyecto
 
 El resultado permite descargar un `.xlsx` generado en memoria por

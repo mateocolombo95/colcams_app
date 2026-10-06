@@ -1,6 +1,7 @@
 from math import ceil
 
 from app.models.quote import BOMItem, CCTVRequirements, QuoteEstimate
+from app.services.alarm_engine import build_alarm_bom, estimate_alarm
 
 
 BITRATE_Mbps_BY_MP = {
@@ -113,6 +114,9 @@ def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
             ]
         )
 
+    alarm = estimate_alarm(req.alarm)
+    bom.extend(build_alarm_bom(alarm))
+
     # Product costs will come from supplier catalogs in v0.2.
     equipment_cost = req.extra_material_cost
     total_cost = equipment_cost + req.labor_cost
@@ -138,4 +142,5 @@ def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
         margin_percent=req.margin_percent,
         sale_price=round(sale_price, 2),
         warnings=warnings,
+        **({"alarm": alarm} if alarm is not None else {}),
     )
