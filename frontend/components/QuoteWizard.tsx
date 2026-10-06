@@ -125,7 +125,7 @@ export default function QuoteWizard() {
         <CameraCalculationNotes calculation={calculation} />
         <div aria-live="polite" aria-busy={loading}>{loading && <div className="card loading" role="status">Calculando la solución técnica y comercial…</div>}</div>
         {error && <div className="error" role="alert">{error}</div>}
-        {estimate && <QuoteResult estimate={estimate} survey={survey} cameras={cameras} />}
+        {estimate && <QuoteResult estimate={estimate} survey={survey} cameras={cameras} requirements={requirements} />}
         <div className="actions"><button type="button" className="secondary" onClick={() => { setError(""); setStep(5); }}>Volver y editar</button><button type="button" className="primary" disabled={loading} onClick={() => setAttempt((current) => current + 1)}>{loading ? "Calculando…" : "Recalcular"}</button></div>
       </>}
       {editingCamera && <CameraEditor camera={editingCamera} onSave={(camera) => dispatch({ type: "saveCamera", camera })} onReset={(id) => dispatch({ type: "resetCamera", id })} onClose={() => setEditingCamera(null)} />}

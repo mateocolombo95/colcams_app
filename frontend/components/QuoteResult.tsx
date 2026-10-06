@@ -1,11 +1,13 @@
-import type { CameraRequirement, QuoteEstimate, Survey } from "../types/quote";
+import type { CameraRequirement, QuoteEstimate, QuoteRequest, Survey } from "../types/quote";
 import CameraDetails from "./cameras/CameraDetails";
+import ProjectExport from "./exports/ProjectExport";
 
 export const money = (value: number) => "$ " + value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const costNotice = "El motor todavía no incluye precios de catálogo para la BOM. El costo total suma únicamente materiales/equipos adicionales y mano de obra ingresados. Usá la misma moneda en ambos importes.";
 
-export default function QuoteResult({ estimate, survey, cameras }: { estimate: QuoteEstimate; survey: Survey; cameras: CameraRequirement[] }) {
+export default function QuoteResult({ estimate, survey, cameras, requirements }: { estimate: QuoteEstimate; survey: Survey; cameras: CameraRequirement[]; requirements: QuoteRequest }) {
   return <div className="result">
+    <ProjectExport project={{ estimate, survey, cameras, requirements }} />
     <section className="card"><h2>Resumen del proyecto</h2><dl className="summary-grid">
       <div><dt>Cliente</dt><dd>{survey.client}</dd></div><div><dt>Sitio</dt><dd>{survey.site}</dd></div>
       <div><dt>Tipo de sitio</dt><dd>{survey.siteType}</dd></div><div><dt>Cámaras</dt><dd>{cameras.length}</dd></div>

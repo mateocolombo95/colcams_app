@@ -52,6 +52,36 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       assert.deepEqual(Object.keys(payload).sort(), ["camera_count", "outdoor_camera_count", "resolution_mp", "retention_days", "recording_hours_per_day", "average_cable_m_per_camera", "wired_poe", "extra_material_cost", "labor_cost", "margin_percent"].sort());
       assert.deepEqual(errors, []);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      // Optional integration against a real local export API.
+      if (process.env.EXPORT_API_URL) {
+        let failExport = true;
+        await page.route("**/api/v1/exports/materials.xlsx", async route => {
+          if (failExport) return route.fulfill({ status: 500, body: "error" });
+          const response = await fetch(process.env.EXPORT_API_URL + "/api/v1/exports/materials.xlsx", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: route.request().postData(),
+          });
+          assert.equal(response.status, 200);
+          const bytes = Buffer.from(await response.arrayBuffer());
+          assert.equal(bytes.subarray(0, 2).toString(), "PK");
+          await route.fulfill({ status: response.status, headers: { "content-type": response.headers.get("content-type") }, body: bytes });
+        });
+        await page.getByRole("button", { name: "Descargar Excel", exact: true }).click();
+        await page.getByRole("alert").filter({ hasText: "No se pudo generar la planilla" }).waitFor();
+        failExport = false;
+        const downloaded = page.waitForEvent("download");
+        await page.getByRole("button", { name: "Descargar Excel", exact: true }).click();
+        const download = await downloaded;
+        assert.ok(download.suggestedFilename().startsWith("colcams_Cliente_de_prueba_Sitio_de_prueba_"));
+        assert.equal(await download.failure(), null);
+        await page.getByRole("button", { name: "Enviar por email", exact: true }).click();
+        await page.locator("#export-email").fill("instalador@example.com");
+        await page.getByRole("button", { name: "Enviar", exact: true }).click();
+        await page.getByRole("status").filter({ hasText: "El envío por email todavía no está configurado" }).waitFor();
+        await page.getByRole("button", { name: "Cancelar", exact: true }).click();
+        assert.equal(await page.locator(".camera-detail").count(), 8);
+        assert.deepEqual(errors, []);
+        console.log(`Real Excel download and retry/email UI passed at ${viewport.width}px.`);
+      }
       console.log(`Wizard passed at ${viewport.width}px; API simulated.`);
       await page.close();
     }

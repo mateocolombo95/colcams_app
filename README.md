@@ -254,6 +254,39 @@ Future verticals:
 
 ## Status
 
+### Exportar proyecto
+
+El resultado permite descargar un `.xlsx` generado en memoria por
+`POST /api/v1/exports/materials.xlsx`. El request contiene un snapshot del
+resultado actual (`estimate`, incluida su BOM), cámaras con su recomendación
+preliminar de lente, cliente/sitio, fecha local y parámetros de grabación.
+No recalcula materiales ni guarda archivos. La dependencia nueva del backend
+es `openpyxl>=3.1.5,<4` (incluida en `requirements.txt`).
+
+El Excel incluye **Resumen**, **Materiales** y **Cámaras**, con filtros,
+encabezados congelados, importes y porcentajes formateados. Los textos se
+exportan como valores literales, sin ejecutar fórmulas. Un ejemplo de nombre:
+`colcams_Jose_Cliente_Porton_principal_2026-10-06.xlsx`.
+
+El frontend envía el snapshot, recibe un Blob y descarga mediante un enlace
+temporal, conservando el wizard. El modelo actual tiene una sola referencia
+de sitio; no se inventan un nombre de proyecto ni una dirección separados.
+Las descripciones de materiales conservan el texto original de la BOM; las
+categorías conocidas se traducen. La unidad se deriva de categorías conocidas
+(`cable`: metros; equipos: unidades), dejando vacías las desconocidas.
+
+El modal de email valida el formato y comunica que el envío no está configurado.
+`backend/app/services/export_email.py` define el contrato del futuro proveedor.
+No existe endpoint de envío ni se envían emails. Un futuro adaptador debe leer
+`RESEND_API_KEY` solamente en backend y agregar autenticación y límites antes
+de exponer el envío, reutilizando el mismo generador Excel.
+
+Pruebas: `python -m pytest -q` desde `backend`; `npm test` y `npm run build`
+desde `frontend`. La prueba de navegador opcional también verifica descarga
+real, recuperación de errores y modal en escritorio y móvil si se define
+`EXPORT_API_URL` con una API local en ejecución. La estimación se simula en
+esa prueba; el endpoint de exportación se invoca realmente.
+
 El módulo de cámaras distingue distancia de cableado (`distanceM`) de distancia
 al punto de interés (`targetDistanceM`, opcional y no negativa). `viewingRange`
 registra vista cercana, media, lejana o ambas. Inicialmente usa vista cercana
