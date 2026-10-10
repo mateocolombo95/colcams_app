@@ -1,335 +1,147 @@
-# Security Quote
+﻿# Security Quote
 
-Technical and commercial quoting platform for electronic security installers.
+Aplicación de relevamiento y presupuesto técnico para instaladores de seguridad
+electrónica. Permite registrar la visita, preparar una BOM preliminar y estimar
+materiales, almacenamiento, mano de obra, margen bruto y precio de venta.
 
-Security Quote helps installers go from a site survey to a structured technical solution, bill of materials, project cost and commercial proposal.
+## Implementado
 
-The initial MVP focuses on IP CCTV installations.
+- Wizard de siete pasos en español, usable desde celular.
+- CCTV con configuración general y personalizaciones individuales por cámara.
+- Alcance visual, objetivo de imagen, distancia al objetivo, requisitos
+  nocturnos, eventos, objetivos de detección y acciones solicitadas.
+- Grabación continua, por eventos o a definir; retención de 1 a 180 días.
+- Pendientes técnicos/comerciales que permiten guardar un borrador y errores
+  de validación que deben corregirse.
+- Estimación determinista preliminar de NVR, almacenamiento, puertos PoE,
+  switch, cableado y BOM; costos ingresados manualmente y margen bruto.
+- Guardado y recuperación de proyectos en MongoDB, incluidos relevamiento,
+  cámaras, defaults y personalizaciones; actualización del proyecto abierto.
+- Subsistema opcional de alarma/intrusión, con motor independiente.
+- Excel con **Resumen**, **Materiales** y **Cámaras**; **Alarma** cuando está activa.
 
----
+Las selecciones expresan requisitos del cliente. «Identificar», color nocturno
+o detección de personas no certifican capacidades de un equipo. La orientación
+de lente sigue siendo preliminar. Consultar los [requisitos CCTV y sus
+limitaciones](docs/cctv-requirements.md) antes de usar el resultado como propuesta.
 
-## Product vision
+## Arquitectura y documentación
 
-Electronic security installers often build quotations using a combination of:
+Frontend: Next.js **16.3.8**, React y TypeScript. Backend: FastAPI y Python.
+Persistencia: MongoDB. No se incorporan dependencias nuevas en la iteración
+de requisitos CCTV.
 
-- site notes
-- spreadsheets
-- supplier price lists
-- manual calculations
-- WhatsApp
-- previous quotations
-- technical experience
+```text
+Formulario → normalización → API/validación → MongoDB/proyecto
+                 ↑                               ↓
+                 └──────── recuperación ─────────┘
 
-Security Quote aims to centralize this workflow.
+Requisitos → motor técnico → resultado/BOM → exportación Excel
+```
 
-The system guides the installer through the site survey and converts project requirements into a structured technical and commercial solution.
+- [Requisitos CCTV, persistencia y compatibilidad](docs/cctv-requirements.md).
+- [Informe de la iteración CCTV y verificación](docs/cctv-iteration-report.md).
+- [Reglas de dimensionamiento CCTV](docs/quote-rules.md).
+- [Arquitectura implementada y futura](docs/architecture.md).
+- [Reglas de alarma y significado de «medios de comunicación»](docs/alarm-rules.md).
+- [Definición del producto](docs/product.md), [roadmap](docs/roadmap.md) y
+  [decisiones](docs/decisions.md).
 
-The long-term workflow is:
+La estructura principal es `frontend/` (interfaz, tipos y pruebas), `backend/`
+(API, modelos, motores y pruebas) y `docs/` (documentación).
 
-Site Survey
-→ Technical Requirements
-→ Engineering Engine
-→ Bill of Materials
-→ Supplier Pricing
-→ Project Cost
-→ Commercial Proposal
+## Ejecución local
 
----
+Desde `backend/`, crear y activar el entorno virtual, instalar dependencias e
+iniciar FastAPI:
 
-## Current MVP
-
-The current version includes a guided CCTV site survey covering:
-
-- customer and site information
-- camera requirements
-- indoor/outdoor cameras
-- resolution
-- PoE / Wi-Fi connectivity
-- recording retention
-- recording hours per day
-- cabling estimates
-- infrastructure requirements
-- extraordinary work
-- additional materials
-- labor cost
-- commercial margin
-
-The system currently calculates:
-
-- required NVR capacity
-- estimated storage
-- PoE requirements
-- switch size
-- estimated UTP cable
-- preliminary BOM
-- project cost
-- gross margin
-- sale price
-
----
-
-## Camera configuration
-
-Camera requirements can be defined using global defaults for fast quotations.
-
-For more complex projects, individual cameras can override the global configuration.
-
-Example:
-
-C1 - Entrance - Outdoor - Bullet - 8 MP - PoE - 42 m  
-C2 - Patio - Outdoor - Turret - 4 MP - PoE - 31 m  
-C3 - Cash register - Indoor - Dome - 4 MP - PoE - 12 m
-
-This model will later allow cameras to be associated with floor plans, products, suppliers and installation points.
-
----
-
-## Engineering philosophy
-
-Critical calculations should be:
-
-- deterministic
-- explainable
-- auditable
-- reproducible
-
-AI should not silently make critical engineering decisions.
-
-AI may later be used to:
-
-- interpret installer notes
-- structure customer requirements
-- assist during site surveys
-- generate technical descriptions
-- generate commercial proposals
-- suggest observations
-
-The installer remains responsible for validating the technical solution.
-
----
-
-## Architecture
-
-Frontend:
-- Next.js
-- TypeScript
-
-Backend:
-- FastAPI
-- Python
-
-Database:
-- MongoDB
-
-Future integrations:
-- supplier price lists
-- Excel / CSV imports
-- proposal generation
-- project plans
-- AI assistance
-
-Architecture:
-
-Installer
-→ Next.js Web Application
-→ FastAPI
-→ Engineering / Pricing Engine
-→ MongoDB
-
----
-
-## Project structure
-
-security-quote/
-├── backend/
-│   ├── app/
-│   └── tests/
-│
-├── frontend/
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   └── types/
-│
-├── docs/
-│   ├── product.md
-│   ├── architecture.md
-│   ├── roadmap.md
-│   ├── quote-rules.md
-│   └── decisions.md
-│
-├── .env.example
-├── .gitignore
-└── README.md
-
----
-
-## Running locally
-
-### Backend
-
-From `/backend`:
-
+```powershell
 python -m venv .venv
-
-Activate the virtual environment on Windows:
-
 .\.venv\Scripts\Activate.ps1
-
-Install dependencies:
-
 pip install -r requirements.txt
-
-Start FastAPI:
-
 uvicorn app.main:app --reload
+```
 
-Backend:
+La API escucha en `http://localhost:8000`; la documentación interactiva está
+en `http://localhost:8000/docs`. Configurar `MONGODB_URI` y `MONGODB_DB` en el
+`.env` del backend para guardar y abrir proyectos. `CORS_ORIGINS` admite una
+lista separada por comas; incluir el origen del frontend utilizado.
 
-http://localhost:8000
+Desde `frontend/`:
 
-API documentation:
-
-http://localhost:8000/docs
-
-### Frontend
-
-From `/frontend`:
-
+```powershell
 npm install
-
 npm run dev
+```
 
-Frontend:
+El frontend escucha en `http://localhost:3000`. Configurar
+`NEXT_PUBLIC_API_URL` en `.env.local` si la API utiliza otra dirección. Usar
+[.env.example](.env.example) como referencia y mantener credenciales y secretos
+fuera del repositorio. Para Vercel, conservar Next.js 16.3.8 y configurar la URL
+pública de la API; MongoDB y sus credenciales se usan solamente en backend.
 
-http://localhost:3000
+## Guardar, abrir y estimar
 
----
+El wizard permite **Guardar borrador** durante el relevamiento y abrir un
+proyecto guardado. Guarda los datos individuales, los defaults generales, los
+requisitos de grabación, el relevamiento completo y la alarma. Al editar un
+proyecto abierto se actualiza su documento mediante la API existente ampliada.
+Se requiere una conexión disponible con la API y MongoDB.
 
-## Environment variables
+Los cambios técnicos obligan a obtener una estimación actual. El Excel utiliza
+el resultado vigente y los datos normalizados; no vuelve a dimensionar la
+solución. La descarga no envía correo: el modal comunica que el proveedor de
+email todavía no está configurado.
 
-Environment variables must not be committed to the repository.
+## Verificación
 
-Use `.env.example` as reference and create local `.env` / `.env.local` files when required.
+Comandos disponibles, sin afirmar resultados de una ejecución particular:
 
-Never commit:
+```powershell
+# Desde backend/
+python -m pytest -q
 
-- credentials
-- API keys
-- MongoDB credentials
-- supplier credentials
-- production secrets
+# Desde frontend/ (Node con soporte de --experimental-strip-types)
+npm test
+npm run build
+```
 
----
+Las pruebas opcionales de navegador usan una instalación existente de
+Playwright (`PLAYWRIGHT_MODULE` si es necesario) y un frontend indicado por
+`WIZARD_URL`, cuyo valor por defecto es `http://localhost:3100`:
 
-## Roadmap
+```powershell
+node tests/wizard.browser.cjs
+node tests/alarm.browser.cjs
+```
 
-Current:
+`EXPORT_API_URL` habilita la verificación real de exportación en la prueba del
+wizard; `ALARM_API_URL` indica la API para la prueba de alarma. No se agrega
+Playwright como dependencia del proyecto.
 
-Site survey wizard
-→ Camera configuration
-→ CCTV engineering engine
+`tests/cctv.browser.cjs` verifica el nuevo flujo contra la API desde escritorio
+y móvil mediante Chromium existente y Node 24, sin depender de Playwright.
+Usa `WIZARD_URL`, `CCTV_API_URL` y, si hace falta, `CHROMIUM_PATH`:
 
-Next:
+```powershell
+node tests/cctv.browser.cjs
+```
 
-Individual camera engineering
-→ Product catalog
-→ Supplier catalogs
-→ Supplier price comparison
-→ Detailed BOM
-→ Commercial proposal
-→ PDF / shareable proposal
-→ Site plan
-→ AI-assisted survey
+Para pruebas locales sin MongoDB, `backend/tests/browser_api.py` monta las rutas,
+modelos, motores y Excel reales con una colección de proyectos en memoria:
 
-Future verticals:
+```powershell
+# Desde backend/
+.\.venv\Scripts\python.exe -m uvicorn browser_api:app --app-dir tests --host 127.0.0.1 --port 8100
+```
 
-- Access Control
-- Intrusion Alarms
-- Intercom
-- Networking / Wi-Fi
-- Fire Detection
+Ese harness es solamente para pruebas: pierde datos al cerrarse y no sustituye
+la conexión MongoDB de la aplicación ni verifica un servidor MongoDB real.
 
----
+## Futuro
 
-## Status
-
-### Alarma / Intrusión
-
-El paso de cámaras incorpora un subsistema opcional de alarma, desactivado por
-defecto, con relevamiento rápido y personalización avanzada. El motor vive en
-FastAPI; `alarm` es opcional en `POST /api/v1/quotes/estimate`. La previsualización
-usa `POST /api/v1/quotes/alarm/estimate` y el mismo motor. El resultado combina
-la BOM de CCTV y alarma sin precios nuevos. El Excel agrega **Alarma** solamente
-cuando está activa, y amplía **Resumen** y **Materiales** desde el resultado.
-
-Consultar [reglas y limitaciones de alarma](docs/alarm-rules.md) para zonas,
-overrides, expansión, consumos placeholder, cableado, batería y advertencias.
-No se agregan dependencias ni integración con servicios reales de monitoreo.
-
-Pruebas del módulo: `python -m pytest -q` desde `backend` y `npm test` desde
-`frontend`. `tests/alarm.browser.cjs` verifica el flujo completo contra una API
-local mediante `ALARM_API_URL`, un frontend indicado por `WIZARD_URL` y una
-instalación existente de Playwright (`PLAYWRIGHT_MODULE`).
-
-### Exportar proyecto
-
-El resultado permite descargar un `.xlsx` generado en memoria por
-`POST /api/v1/exports/materials.xlsx`. El request contiene un snapshot del
-resultado actual (`estimate`, incluida su BOM), cámaras con su recomendación
-preliminar de lente, cliente/sitio, fecha local y parámetros de grabación.
-No recalcula materiales ni guarda archivos. La dependencia nueva del backend
-es `openpyxl>=3.1.5,<4` (incluida en `requirements.txt`).
-
-El Excel incluye **Resumen**, **Materiales** y **Cámaras**, con filtros,
-encabezados congelados, importes y porcentajes formateados. Los textos se
-exportan como valores literales, sin ejecutar fórmulas. Un ejemplo de nombre:
-`colcams_Jose_Cliente_Porton_principal_2026-10-06.xlsx`.
-
-El frontend envía el snapshot, recibe un Blob y descarga mediante un enlace
-temporal, conservando el wizard. El modelo actual tiene una sola referencia
-de sitio; no se inventan un nombre de proyecto ni una dirección separados.
-Las descripciones de materiales conservan el texto original de la BOM; las
-categorías conocidas se traducen. La unidad se deriva de categorías conocidas
-(`cable`: metros; equipos: unidades), dejando vacías las desconocidas.
-
-El modal de email valida el formato y comunica que el envío no está configurado.
-`backend/app/services/export_email.py` define el contrato del futuro proveedor.
-No existe endpoint de envío ni se envían emails. Un futuro adaptador debe leer
-`RESEND_API_KEY` solamente en backend y agregar autenticación y límites antes
-de exponer el envío, reutilizando el mismo generador Excel.
-
-Pruebas: `python -m pytest -q` desde `backend`; `npm test` y `npm run build`
-desde `frontend`. La prueba de navegador opcional también verifica descarga
-real, recuperación de errores y modal en escritorio y móvil si se define
-`EXPORT_API_URL` con una API local en ejecución. La estimación se simula en
-esa prueba; el endpoint de exportación se invoca realmente.
-
-El módulo de cámaras distingue distancia de cableado (`distanceM`) de distancia
-al punto de interés (`targetDistanceM`, opcional y no negativa). `viewingRange`
-registra vista cercana, media, lejana o ambas. Inicialmente usa vista cercana
-sin asumir una distancia. El reducer existente conserva los defaults en el
-frontend: las cámaras sin personalizar los heredan; guardar conserva todos los
-valores individuales y restablecer recupera los defaults actuales.
-
-`getLensRecommendation` en `frontend/lib/cameras.ts` ofrece orientaciones de
-2.8–4 mm, 4–6 mm, 6–12 mm/varifocal o evaluación de una segunda cámara.
-A partir de 20 m sugiere revisar los casos cercano y lejano; es un umbral
-de revisión modificable, no un límite óptico. El caso mixto siempre muestra
-una advertencia sin bloquear. No calcula DORI ni selecciona productos.
-Los campos nuevos permanecen en el estado del relevamiento y no se envían
-al backend ni se persisten. El request de estimación conserva su esquema.
-
-Desde `frontend`, ejecutar `npm test` (Node con soporte de eliminación de
-tipos, validado con Node 24) y `npm run build`.
-
-`frontend/tests/wizard.browser.cjs` verifica los siete pasos, overrides,
-payload y resultado en escritorio y móvil con API simulada. No instala
-dependencias: necesita una instalación existente de Playwright, indicada
-mediante `PLAYWRIGHT_MODULE` si no está en la resolución habitual de Node.
-Con el servidor iniciado, ejecutar `node tests/wizard.browser.cjs` desde
-`frontend`; `WIZARD_URL` permite cambiar la URL (default: localhost:3100).
-
-Early MVP / active development.
-
-The application is currently intended for internal testing and validation with electronic security installers.
+Quedan pendientes DORI, FOV y cálculo óptico real; selección de modelos y SKU;
+catálogos, proveedores y precios reales; planos y recorridos; integración de
+sirena/NVR/alarma; horarios y actividad validada de eventos; propuestas PDF,
+email real e IA. El motor actual no garantiza detalle de imagen ni retención
+exacta. Es un MVP para validación con instaladores.

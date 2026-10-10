@@ -112,6 +112,15 @@ h3 { font-size: 16px; margin: 0 0 14px; }
 .camera-detail dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0 0; }
 .camera-detail dd { font-size: 14px; }
 .camera-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.camera-requirements { margin-top: 24px; padding-top: 20px; border-top: 1px solid #dfe5eb; }
+.camera-requirements h4 { margin: 0 0 10px; font-size: 16px; }
+.camera-requirements summary { cursor: pointer; margin-bottom: 12px; }
+.camera-requirements .full { grid-column: 1 / -1; }
+.project-buttons, .project-picker { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.project-picker { margin-top: 18px; }
+.project-picker .field { flex: 1; min-width: 0; }
+.project-controls { margin-bottom: 24px; }
+.camera-detail dd { overflow-wrap: anywhere; }
 .calculation-warning { padding: 18px; margin: 20px 0; border: 1px solid #dacfb7; border-radius: 8px; background: #faf7ef; color: #695830; font-size: 14px; line-height: 1.6; }
 .calculation-warning ul { padding-left: 20px; margin: 12px 0; }
 .calculation-warning li + li { margin-top: 10px; }

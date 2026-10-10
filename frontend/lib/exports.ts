@@ -1,11 +1,15 @@
 import type { CameraRequirement, QuoteEstimate, QuoteRequest, Survey } from "../types/quote";
-import { getLensRecommendation } from "./cameras";
+import { getCameraPending, getLensRecommendation, getProjectPending, normalizeCamera } from "./cameras";
 
 export type ExportProject = { estimate: QuoteEstimate; survey: Survey; cameras: CameraRequirement[]; requirements: QuoteRequest };
 
 export function createExportSnapshot(project: ExportProject, now = new Date()) {
   // Use the installer's local date, independent of UTC day boundaries.
   const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+  const recordingMode = project.requirements.recordingMode ?? "undefined";
+  const storageHours = project.estimate.storage_hours_per_day
+    ?? (recordingMode === "continuous" || recordingMode === "events" ? 24 : project.requirements.recording_hours_per_day);
+  const cameras = project.cameras.map(normalizeCamera);
   return {
     client: project.survey.client || undefined,
     // The current survey has one site reference, no separate project/address fields.
@@ -13,10 +17,13 @@ export function createExportSnapshot(project: ExportProject, now = new Date()) {
     date,
     retention_days: project.requirements.retention_days,
     recording_hours_per_day: project.requirements.recording_hours_per_day,
+    recordingMode,
+    storage_hours_per_day: storageHours,
+    technical_pending: getProjectPending(project.requirements, cameras),
     estimate: project.estimate,
-    cameras: project.cameras.map(camera => {
+    cameras: cameras.map(camera => {
       const recommendation = getLensRecommendation(camera);
-      return { ...camera, lensRecommendation: [recommendation.text, ...recommendation.warnings].join(" ") };
+      return { ...camera, technicalPending: getCameraPending(camera, recordingMode), lensRecommendation: [recommendation.text, ...recommendation.warnings].join(" ") };
     }),
   };
 }

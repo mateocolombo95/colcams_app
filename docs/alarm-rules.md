@@ -13,6 +13,46 @@ se combinan al pedir el resultado. No se agregan pasos al relevamiento simple.
 solamente organiza requerimientos, personalizaciones y etiquetas; no replica
 dimensionamiento. El exportador consume la estimación actual sin recalcular.
 
+## Revisión del campo «medios de comunicación»
+
+Esta iteración CCTV solamente inspecciona este campo; no modifica el
+comportamiento de alarmas.
+
+- UI: `frontend/components/alarm/AlarmConfigurator.tsx`, en la sección
+  **Sirenas y comunicación**, muestra **Medios de comunicación** y la opción
+  **Sin comunicación remota**.
+- Frontend: `frontend/types/alarm.ts` define
+  `AlarmCommunication = "ethernet" | "wifi" | "lte" | "telephone"` y
+  `AlarmConfiguration.communications: AlarmCommunication[]`.
+- Etiquetas: `frontend/lib/alarm.ts`, `alarmCommunicationLabels`, muestra
+  Ethernet/IP, Wi-Fi, LTE/4G y línea telefónica. El default es `[]`.
+- Backend: `backend/app/models/alarm.py` define el mismo literal
+  `AlarmCommunication` y `AlarmConfiguration.communications`; el validador
+  elimina selecciones repetidas para no duplicar consumo ni materiales.
+- Motor: `backend/app/services/alarm_engine.py`, `estimate_alarm_load`, agrega
+  5 W conceptuales por comunicador. `build_alarm_bom` agrega un comunicador
+  IP/Ethernet, IP/Wi-Fi, LTE/4G o telefónico por cada medio seleccionado.
+  `get_alarm_warnings` advierte sobre app/notificaciones/monitoreo sin un medio,
+  contradicción con `localOnly`, redundancia IP + LTE y revisión del enlace LTE.
+- Presentación: `frontend/components/alarm/AlarmArchitecture.tsx` muestra las
+  comunicaciones resueltas. `backend/app/services/excel_export.py` las incluye
+  en **Resumen**, y su BOM en **Materiales**.
+
+Por los valores y usos actuales, representa **medios de comunicación remota del
+panel**. Ethernet/Wi-Fi pueden dar salida a una red IP; LTE y telefonía son otros
+transportes. El modelo no concreta proveedor, central, protocolo ni destino.
+No representa sensores ↔ panel: ese tramo usa `systemType` y
+`AlarmDeviceRequirement.connection`. Tampoco especifica por sí solo el canal de
+aviso al usuario o el contrato de monitoreo: `remoteAppRequired`,
+`pushNotificationsRequired` y `professionalMonitoringRequired` son requisitos
+independientes.
+
+El nombre es **ambiguo fuera del contexto** porque no indica qué equipo se
+comunica ni hacia dónde. Esta conclusión describe la implementación, no una
+integración remota garantizada. Una futura revisión de UX podría aclarar el
+tramo panel → red/servicio remoto sin mezclarlo con conexión de sensores o
+acciones de eventos CCTV.
+
 El campo `mode` indica configuración automática o personalizada. Los ajustes
 explícitos se conservan al alternar modos; `panelMode` y `auxiliaryPowerMode`
 indican qué selección se debe calcular o respetar manualmente. Los dispositivos

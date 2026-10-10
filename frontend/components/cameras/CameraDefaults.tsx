@@ -1,4 +1,5 @@
 import CameraLensRecommendation from "./CameraLensRecommendation";
+import CameraRequirementsFields from "./CameraRequirementsFields";
 import { useState } from "react";
 import { validCameraDefaults, viewingRangeLabels } from "../../lib/cameras";
 import type { GlobalCameraDefaults } from "../../types/quote";
@@ -30,9 +31,12 @@ export default function CameraDefaults({ defaults, onChange }: Props) {
       <div className="field"><label htmlFor="resolution">Resolución global</label><select id="resolution" value={defaults.resolutionMp} onChange={(event) => onChange({ ...defaults, resolutionMp: Number(event.target.value) as GlobalCameraDefaults["resolutionMp"] })}>{[2, 4, 5, 8].map((mp) => <option key={mp} value={mp}>{mp} MP</option>)}</select></div>
       <div className="field"><label htmlFor="connectivity">Conectividad global</label><select id="connectivity" value={defaults.connectivity} onChange={(event) => onChange({ ...defaults, connectivity: event.target.value as GlobalCameraDefaults["connectivity"] })}><option value="poe">IP cableado / PoE</option><option value="wifi">Wi-Fi</option></select></div>
       <div className="field"><label htmlFor="average_cable_m_per_camera">Distancia promedio de cableado (m)</label><input id="average_cable_m_per_camera" type="number" inputMode="decimal" min={0} max={500} step="any" required value={numbers.distanceM} onChange={(event) => setNumbers({ ...numbers, distanceM: event.target.value })} onBlur={commit} /></div>
-      <div className="field"><label htmlFor="global-viewing-range">Objetivo de visualización</label><select id="global-viewing-range" value={defaults.viewingRange} onChange={(event) => onChange({ ...defaults, viewingRange: event.target.value as GlobalCameraDefaults["viewingRange"] })}>{Object.entries(viewingRangeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      <div className="field"><label htmlFor="global-target-distance">Distancia aproximada al punto de interés (m) · Opcional</label><input id="global-target-distance" type="number" inputMode="decimal" min={0} step="any" value={numbers.targetDistanceM} onChange={(event) => setNumbers({ ...numbers, targetDistanceM: event.target.value })} onBlur={commit} aria-describedby="target-help" /><p id="target-help" className="muted small">Desde la cámara hasta lo que necesitás observar; independiente del cableado.</p></div>
-    </div><CameraLensRecommendation camera={defaults} />
+      <div className="field"><label htmlFor="global-viewing-range">Alcance visual</label><select id="global-viewing-range" value={defaults.viewingRange} onChange={(event) => onChange({ ...defaults, viewingRange: event.target.value as GlobalCameraDefaults["viewingRange"] })}>{Object.entries(viewingRangeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+    </div>
+    <CameraRequirementsFields values={candidate} prefix="global" onChange={(patch) => { if (valid) onChange({ ...candidate, ...patch }); }} targetDistanceField={
+      <div className="field"><label htmlFor="global-target-distance">Distancia aproximada hasta la persona u objeto (m)</label><input id="global-target-distance" type="number" inputMode="decimal" min={Number.MIN_VALUE} step="any" value={numbers.targetDistanceM} onChange={(event) => setNumbers({ ...numbers, targetDistanceM: event.target.value })} onBlur={commit} aria-describedby="target-help" /><p id="target-help" className="muted small">Desde la cámara hasta lo que necesitás observar; independiente del cableado. Puede quedar pendiente.</p></div>
+    } />
+    <CameraLensRecommendation camera={defaults} />
     <p className="muted small" id="outdoor-help">Las primeras cámaras se asignan al exterior. La cantidad exterior no puede superar el total. Las cámaras personalizadas conservan su ambiente.</p>
     {Number.isFinite(candidate.outdoorCount) && candidate.outdoorCount > candidate.cameraCount && <p className="error" role="alert">La cantidad de cámaras exteriores no puede superar la cantidad total.</p>}
     {Number.isInteger(candidate.cameraCount) && candidate.cameraCount >= 1 && candidate.cameraCount < defaults.cameraCount && <p className="note">Al aplicar la cantidad se eliminan las últimas cámaras, incluidas sus personalizaciones.</p>}

@@ -11,6 +11,9 @@ export type QuoteRequest = {
   extra_material_cost: number;
   labor_cost: number;
   margin_percent: number;
+  recordingMode?: RecordingMode;
+  cameras?: CameraRequirement[];
+  cameraDefaults?: GlobalCameraDefaults;
   alarm?: AlarmConfiguration;
 };
 
@@ -28,6 +31,8 @@ export type QuoteEstimate = {
   margin_percent: number;
   sale_price: number;
   warnings: string[];
+  storage_hours_per_day?: number;
+  technical_pending?: string[];
   alarm?: AlarmEstimate | null;
 };
 
@@ -42,7 +47,25 @@ export type Survey = {
   extraNotes: string;
 };
 
-export type CameraRequirement = {
+export type RecordingMode = "continuous" | "events" | "undefined";
+export type ImageObjective = "undefined" | "overview" | "recognize" | "identify";
+export type RequirementAnswer = "yes" | "no" | "undefined";
+export type NightLighting = "none" | "permanent" | "motion" | "unknown";
+export type DetectionEvent = "none" | "motion" | "line_crossing" | "intrusion_zone" | "undefined";
+export type DetectionTarget = "any" | "person" | "vehicle" | "person_vehicle" | "undefined";
+export type EventAction = "mobile_notification" | "external_siren";
+
+export type CameraAssessment = {
+  imageObjective: ImageObjective;
+  nightObjectiveRequired: RequirementAnswer;
+  nightLighting: NightLighting;
+  nightColorRequired: RequirementAnswer;
+  detectionEvent: DetectionEvent;
+  detectionTarget: DetectionTarget;
+  eventActions: EventAction[];
+};
+
+export type CameraRequirement = CameraAssessment & {
   id: string;
   name: string;
   location?: string;
@@ -57,7 +80,7 @@ export type CameraRequirement = {
   customized: boolean;
 };
 
-export type GlobalCameraDefaults = {
+export type GlobalCameraDefaults = CameraAssessment & {
   cameraCount: number;
   outdoorCount: number;
   resolutionMp: CameraRequirement["resolutionMp"];
@@ -73,4 +96,22 @@ export type CameraCalculation = {
   individualDistances: boolean;
   mixedResolutions: boolean;
   mixedConnectivity: boolean;
+};
+
+export type ProjectInput = {
+  survey: Survey;
+  requirements: QuoteRequest;
+};
+
+export type Project = {
+  id: string;
+  customer_name: string;
+  site_name: string;
+  notes: string;
+  survey?: Partial<Survey>;
+  requirements: QuoteRequest;
+  latest_estimate?: QuoteEstimate | null;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
 };

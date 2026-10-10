@@ -44,3 +44,34 @@ test("export snapshot preserves the backend alarm result and unified BOM without
   assert.equal(snapshot.estimate.bom, bom);
   assert.equal(snapshot.estimate.bom[1].unit, "m");
 });
+
+test("export includes normalized image, night, event, action and pending fields", () => {
+  const camera = { id: "C4", name: "Portón", viewingRange: "far", imageObjective: "identify", targetDistanceM: 28, distanceM: 32, nightObjectiveRequired: "yes", nightLighting: "unknown", nightColorRequired: "no", detectionEvent: "line_crossing", detectionTarget: "vehicle", eventActions: ["mobile_notification", "external_siren"] };
+  const snapshot = createExportSnapshot({ estimate: { bom: [], storage_hours_per_day: 24 }, survey: {}, requirements: { recordingMode: "events", recording_hours_per_day: 3 }, cameras: [camera] });
+  const exported = snapshot.cameras[0];
+  for (const key of ["imageObjective", "viewingRange", "targetDistanceM", "distanceM", "nightObjectiveRequired", "nightLighting", "nightColorRequired", "detectionEvent", "detectionTarget", "eventActions"]) assert.deepEqual(exported[key], camera[key]);
+  assert.ok(exported.technicalPending.some(item => item.includes("iluminación nocturna")));
+  assert.ok(exported.technicalPending.some(item => item.includes("sirena externa")));
+  assert.ok(snapshot.technical_pending.some(item => item.startsWith("Cámara C4:")));
+  assert.equal(snapshot.recordingMode, "events");
+  assert.equal(snapshot.storage_hours_per_day, 24);
+});
+
+test("legacy export marks missing answers pending without inferring responses", () => {
+  const snapshot = createExportSnapshot({ estimate: { bom: [] }, survey: {}, requirements: { recording_hours_per_day: 8 }, cameras: [{ id: "C1", viewingRange: "near", distanceM: 25 }] });
+  assert.equal(snapshot.recordingMode, "undefined");
+  assert.equal(snapshot.storage_hours_per_day, 8);
+  for (const key of ["imageObjective", "nightObjectiveRequired", "nightColorRequired", "detectionEvent", "detectionTarget"]) assert.equal(snapshot.cameras[0][key], "undefined");
+  assert.equal(snapshot.cameras[0].nightLighting, "unknown");
+  assert.deepEqual(snapshot.cameras[0].eventActions, []);
+  assert.ok(snapshot.technical_pending.includes("Definir modalidad de grabación."));
+});
+
+test("continuous and events snapshots use 24h conservatively when older estimate omitted the assumption", () => {
+  for (const recordingMode of ["continuous", "events"]) {
+    const estimate = { bom: [] };
+    const snapshot = createExportSnapshot({ estimate, survey: {}, requirements: { recordingMode, recording_hours_per_day: 4 }, cameras: [] });
+    assert.equal(snapshot.storage_hours_per_day, 24);
+    assert.equal(snapshot.estimate, estimate);
+  }
+});

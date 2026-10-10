@@ -57,7 +57,9 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
         ("Fecha", data.date), ("Cantidad total de cámaras", len(data.cameras)),
         ("Cámaras interiores", sum(c.environment == "indoor" for c in data.cameras)),
         ("Cámaras exteriores", sum(c.environment == "outdoor" for c in data.cameras)),
-        ("Días de grabación", data.retention_days), ("Horas de grabación por día", data.recording_hours_per_day),
+        ("Días de grabación", data.retention_days),
+        ("Modo de grabación", {"continuous": "Continua", "events": "Solo ante eventos", "undefined": "A definir"}[data.recordingMode]),
+        ("Horas por día usadas para almacenamiento", estimate.storage_hours_per_day if estimate.storage_hours_per_day is not None else data.recording_hours_per_day),
         ("NVR recomendado (canales)", estimate.nvr_channels),
         ("Almacenamiento estimado (TB)", estimate.storage_tb_raw),
         ("Almacenamiento seleccionado (TB)", estimate.storage_tb_selected),
@@ -107,6 +109,8 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
             cell.number_format = "yyyy-mm-dd"
     for warning in estimate.warnings:
         append_row(summary, ["Advertencia del resultado", warning])
+    for pending in estimate.technical_pending:
+        append_row(summary, ["Pendiente técnico / comercial", pending])
     if alarm is not None:
         for warning in alarm.warnings:
             append_row(summary, ["Advertencia de alarma", warning])
@@ -124,14 +128,30 @@ def generate_materials_excel(data: MaterialsExport) -> bytes:
         unit = item.unit or ("m" if item.category in {"cable", "alarm_cable"} else "un" if item.category in categories else None)
         append_row(materials, [categories.get(item.category, item.category), item.description, item.quantity, unit, item.observations or ("Estimado" if item.source == "engine" else None)])
     cameras = workbook.create_sheet("Cámaras")
-    append_row(cameras, ["ID", "Nombre", "Ubicación", "Ambiente", "Formato", "Resolución (MP)", "Conectividad", "Distancia de cableado (m)", "Objetivo de visualización", "Distancia al punto de interés (m)", "Recomendación preliminar de lente", "Notas"])
+    append_row(cameras, ["ID", "Nombre", "Ubicación", "Ambiente", "Formato", "Resolución (MP)", "Conectividad", "Distancia de cableado (m)", "Alcance visual", "Objetivo de imagen", "Distancia al objetivo (m)", "Objetivo nocturno", "Iluminación nocturna", "Color nocturno", "Evento", "Objetivo del evento", "Acciones", "Pendientes", "Recomendación preliminar de lente", "Notas"])
     ranges = {"near": "Vista general / corta distancia", "medium": "Distancia media", "far": "Objetivo lejano", "mixed": "Cercano y lejano"}
     formats = {"turret": "Torreta", "bullet": "Tipo bala", "dome": "Domo", "other": "Otro"}
+    objectives = {"undefined": "Sin definir", "overview": "Vista general", "recognize": "Reconocer", "identify": "Identificar"}
+    yes_no = {"yes": "Sí", "no": "No", "undefined": "A definir"}
+    lighting = {"none": "Sin iluminación", "permanent": "Iluminación permanente", "motion": "Iluminación que se enciende por movimiento", "unknown": "A verificar"}
+    events = {"none": "Sin detección adicional solicitada", "motion": "Movimiento dentro de la imagen", "line_crossing": "Cruce de una línea virtual", "intrusion_zone": "Ingreso o permanencia en una zona definida", "undefined": "A definir"}
+    targets = {"any": "Cualquier movimiento u objeto", "person": "Personas", "vehicle": "Vehículos", "person_vehicle": "Personas y vehículos", "undefined": "A definir"}
+    actions = {"mobile_notification": "Aviso al celular", "external_siren": "Activación de una sirena externa"}
     for camera in data.cameras:
-        append_row(cameras, [camera.id, camera.name, camera.location, "Interior" if camera.environment == "indoor" else "Exterior", formats[camera.formFactor], camera.resolutionMp, "PoE" if camera.connectivity == "poe" else "Wi-Fi", camera.distanceM, ranges[camera.viewingRange], camera.targetDistanceM, camera.lensRecommendation, camera.notes])
+        append_row(cameras, [
+            camera.id, camera.name, camera.location,
+            "Interior" if camera.environment == "indoor" else "Exterior", formats[camera.formFactor],
+            camera.resolutionMp, "PoE" if camera.connectivity == "poe" else "Wi-Fi", camera.distanceM,
+            ranges[camera.viewingRange], objectives[camera.imageObjective], camera.targetDistanceM,
+            yes_no[camera.nightObjectiveRequired], lighting[camera.nightLighting],
+            "No, acepta blanco y negro" if camera.nightColorRequired == "no" else yes_no[camera.nightColorRequired],
+            events[camera.detectionEvent], targets[camera.detectionTarget],
+            "; ".join(actions[action] for action in camera.eventActions),
+            "\n".join(camera.technicalPending), camera.lensRecommendation, camera.notes,
+        ])
     style_sheet(summary, [40, 85])
     style_sheet(materials, [22, 55, 15, 12, 35])
-    style_sheet(cameras, [12, 25, 30, 16, 16, 18, 18, 24, 35, 30, 85, 45])
+    style_sheet(cameras, [12, 25, 30, 16, 16, 18, 18, 24, 35, 24, 30, 24, 35, 24, 45, 30, 45, 85, 85, 45])
     if alarm is not None:
         alarm_sheet = workbook.create_sheet("Alarma")
         append_row(alarm_sheet, ["Elemento", "Ubicación", "Tipo", "Conexión", "Cantidad", "Zona", "Observaciones"])

@@ -2,6 +2,7 @@ from math import ceil
 
 from app.models.quote import BOMItem, CCTVRequirements, QuoteEstimate
 from app.services.alarm_engine import build_alarm_bom, estimate_alarm
+from app.services.cctv_requirements import aggregate_camera_requirements, technical_pending
 
 
 BITRATE_Mbps_BY_MP = {
@@ -29,9 +30,14 @@ def choose_common_capacity(required: float, capacities: list[int]) -> int:
     return capacities[-1]
 
 
+def storage_hours_per_day(req: CCTVRequirements) -> float:
+    return 24 if req.recordingMode in {"continuous", "events"} else req.recording_hours_per_day
+
+
 def estimate_storage_tb(req: CCTVRequirements) -> float:
+    req = aggregate_camera_requirements(req)
     bitrate_mbps = BITRATE_Mbps_BY_MP[req.resolution_mp]
-    seconds = req.retention_days * req.recording_hours_per_day * 3600
+    seconds = req.retention_days * storage_hours_per_day(req) * 3600
 
     # Mbps -> MB/s: divide by 8.
     # MB -> TB: divide by 1_000_000.
@@ -48,23 +54,43 @@ def estimate_storage_tb(req: CCTVRequirements) -> float:
 
 
 def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
+    req = aggregate_camera_requirements(req)
     warnings: list[str] = []
 
+    if req.recordingMode == "events":
+        warnings.append(
+            "El almacenamiento se estimó con grabación continua como referencia. "
+            "El consumo real con grabación por eventos dependerá de la actividad de la escena."
+        )
+    elif req.recordingMode == "undefined":
+        warnings.append(
+            "Estimación provisional de almacenamiento: modo de grabación a definir. "
+            f"Se utilizó el supuesto de {req.recording_hours_per_day:g} h/día."
+        )
+    warnings.append("La capacidad y la retención son estimaciones preliminares, sujetas a bitrate y actividad reales.")
+    if len({camera.resolutionMp for camera in req.cameras}) > 1:
+        warnings.append(
+            "Almacenamiento calculado de forma conservadora usando la mayor resolución del proyecto. "
+            "El motor por cámara se implementará posteriormente."
+        )
+    if len({camera.connectivity for camera in req.cameras}) > 1:
+        warnings.append("Esta versión del motor todavía no calcula instalaciones mixtas PoE/Wi-Fi con precisión.")
+
     if req.outdoor_camera_count > req.camera_count:
-        warnings.append("Outdoor camera count exceeds total camera count.")
+        warnings.append("La cantidad de cámaras exteriores supera la cantidad total de cámaras.")
 
     nvr_channels = choose_nvr_channels(req.camera_count)
 
     if req.camera_count > 32:
-        warnings.append("More than 32 cameras requires manual architecture review.")
+        warnings.append("Más de 32 cámaras requieren revisión manual de la arquitectura.")
 
     storage_raw = estimate_storage_tb(req)
     storage_selected = choose_common_capacity(storage_raw, COMMON_DISK_TB)
 
     if storage_raw > COMMON_DISK_TB[-1]:
         warnings.append(
-            "Estimated storage exceeds the largest single-disk placeholder capacity. "
-            "Multi-disk/NVR bay design is required."
+            "El almacenamiento estimado supera la mayor capacidad prevista para un solo disco. "
+            "Se requiere diseñar la cantidad de discos y las bahías del NVR."
         )
 
     estimated_cable_m = (
@@ -83,17 +109,17 @@ def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
     bom: list[BOMItem] = [
         BOMItem(
             category="camera",
-            description=f"IP camera {req.resolution_mp} MP",
+            description=f"Cámara IP {req.resolution_mp} MP",
             quantity=req.camera_count,
         ),
         BOMItem(
             category="nvr",
-            description=f"NVR {nvr_channels} channels",
+            description=f"NVR de {nvr_channels} canales",
             quantity=1,
         ),
         BOMItem(
             category="storage",
-            description=f"Surveillance HDD {storage_selected} TB",
+            description=f"Disco HDD de vigilancia de {storage_selected} TB",
             quantity=1,
         ),
     ]
@@ -103,12 +129,12 @@ def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
             [
                 BOMItem(
                     category="switch",
-                    description=f"PoE switch {switch_ports} ports",
+                    description=f"Switch PoE de {switch_ports} puertos",
                     quantity=1,
                 ),
                 BOMItem(
                     category="cable",
-                    description="Cat6 cable",
+                    description="Cable Cat6",
                     quantity=ceil(estimated_cable_m),
                 ),
             ]
@@ -142,5 +168,7 @@ def estimate_quote(req: CCTVRequirements) -> QuoteEstimate:
         margin_percent=req.margin_percent,
         sale_price=round(sale_price, 2),
         warnings=warnings,
+        technical_pending=technical_pending(req),
+        storage_hours_per_day=storage_hours_per_day(req),
         **({"alarm": alarm} if alarm is not None else {}),
     )

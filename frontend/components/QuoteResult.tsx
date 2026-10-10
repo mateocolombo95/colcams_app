@@ -2,6 +2,8 @@ import type { CameraRequirement, QuoteEstimate, QuoteRequest, Survey } from "../
 import CameraDetails from "./cameras/CameraDetails";
 import ProjectExport from "./exports/ProjectExport";
 import AlarmDetails from "./alarm/AlarmDetails";
+import CameraPending from "./cameras/CameraPending";
+import { getProjectPending, recordingModeLabels } from "../lib/cameras";
 
 export const money = (value: number) => "$ " + value.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const costNotice = "El motor todavía no incluye precios de catálogo para la BOM. El costo total suma únicamente materiales/equipos adicionales y mano de obra ingresados. Usá la misma moneda en ambos importes.";
@@ -19,7 +21,9 @@ export default function QuoteResult({ estimate, survey, cameras, requirements }:
     <section className="card"><h2>Resumen del proyecto</h2><dl className="summary-grid">
       <div><dt>Cliente</dt><dd>{survey.client}</dd></div><div><dt>Sitio</dt><dd>{survey.site}</dd></div>
       <div><dt>Tipo de sitio</dt><dd>{survey.siteType}</dd></div><div><dt>Cámaras</dt><dd>{cameras.length}</dd></div>
-    </dl></section>
+      <div><dt>Grabación</dt><dd>{recordingModeLabels[requirements.recordingMode ?? "undefined"]}</dd></div>
+      <div><dt>Retención solicitada</dt><dd>{requirements.retention_days} días</dd></div>
+    </dl><p className="muted small">Estimación orientativa, sin garantía exacta de capacidad o retención. Referencia de cálculo: {estimate.storage_hours_per_day ?? (requirements.recordingMode === "continuous" || requirements.recordingMode === "events" ? 24 : requirements.recording_hours_per_day)} h/día.</p></section>
     <CameraDetails cameras={cameras} />
     {estimate.alarm && <AlarmDetails estimate={estimate.alarm} />}
     <section className="card"><h2>Diseño técnico</h2><dl className="summary-grid">
@@ -39,5 +43,6 @@ export default function QuoteResult({ estimate, survey, cameras, requirements }:
       <div className="sale"><dt>Precio de venta sugerido</dt><dd>{money(estimate.sale_price)}</dd></div>
     </dl><p className="note">{costNotice}</p></section>
     <section className="card"><h2>Advertencias técnicas de la API</h2>{estimate.warnings.length ? <ul className="warnings">{estimate.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul> : <p className="muted">La API no devolvió advertencias técnicas.</p>}</section>
+    <CameraPending pending={getProjectPending(requirements, cameras)} />
   </div>;
 }

@@ -40,7 +40,7 @@ def test_workbook_uses_current_bom_and_camera_details():
         assert row[2] == item.quantity
     camera = dict(zip(next(book["Cámaras"].values), list(book["Cámaras"].values)[1]))
     assert camera["Distancia de cableado (m)"] == 32
-    assert camera["Distancia al punto de interés (m)"] == 28
+    assert camera["Distancia al objetivo (m)"] == 28
     assert camera["Recomendación preliminar de lente"] == data.cameras[0].lensRecommendation
     assert book["Materiales"].freeze_panes == "A2"
     assert book["Materiales"].auto_filter.ref
@@ -53,7 +53,8 @@ def test_missing_details_formula_text_and_safe_filename():
     data.cameras[0].name = '=HYPERLINK("https://example.com")\x01'
     data.client = "=SUM(1,2)"
     book = load_workbook(BytesIO(generate_materials_excel(data)))
-    assert book["Cámaras"]["J2"].value is None
+    camera = dict(zip(next(book["Cámaras"].values), list(book["Cámaras"].values)[1]))
+    assert camera["Distancia al objetivo (m)"] is None
     assert book["Cámaras"]["B2"].data_type == "s"
     assert "\x01" not in book["Cámaras"]["B2"].value
     assert book["Resumen"]["B2"].data_type == "s"
@@ -84,3 +85,54 @@ def test_endpoint_returns_valid_xlsx_and_validation_errors():
     assert b".xlsx" in headers[b"content-disposition"]
     assert load_workbook(BytesIO(messages[1]["body"])).sheetnames == ["Resumen", "Materiales", "Cámaras"]
     assert asyncio.run(request({}))[0]["status"] == 422
+
+
+def test_new_camera_requirements_pending_and_storage_assumptions_are_exported():
+    data = snapshot()
+    data.recordingMode = "events"
+    data.estimate = estimate_quote(CCTVRequirements(camera_count=1, recordingMode="events", recording_hours_per_day=4))
+    camera = data.cameras[0]
+    camera.imageObjective = "identify"
+    camera.nightObjectiveRequired = "yes"
+    camera.nightLighting = "permanent"
+    camera.nightColorRequired = "no"
+    camera.detectionEvent = "intrusion_zone"
+    camera.detectionTarget = "vehicle"
+    camera.eventActions = ["mobile_notification", "external_siren"]
+    camera.technicalPending = ["Verificar integración de sirena externa."]
+    book = load_workbook(BytesIO(generate_materials_excel(data)))
+    details = dict(zip(next(book["Cámaras"].values), list(book["Cámaras"].values)[1]))
+    assert details["Objetivo de imagen"] == "Identificar"
+    assert details["Alcance visual"] == "Objetivo lejano"
+    assert details["Distancia al objetivo (m)"] == 28
+    assert details["Objetivo nocturno"] == "Sí"
+    assert details["Iluminación nocturna"] == "Iluminación permanente"
+    assert details["Color nocturno"] == "No, acepta blanco y negro"
+    assert details["Evento"] == "Ingreso o permanencia en una zona definida"
+    assert details["Objetivo del evento"] == "Vehículos"
+    assert "Aviso al celular" in details["Acciones"]
+    assert "sirena externa" in details["Acciones"]
+    assert details["Pendientes"] == camera.technicalPending[0]
+    summary = dict(book["Resumen"].values)
+    assert summary["Modo de grabación"] == "Solo ante eventos"
+    assert summary["Horas por día usadas para almacenamiento"] == 24
+    assert any("grabación continua como referencia" in row[1] for row in book["Resumen"].values if isinstance(row[1], str))
+
+
+def test_export_route_normalizes_camera_pending_without_recalculating_bom(monkeypatch):
+    from app.api.routes.exports import export_materials
+    from app.services import quote_engine
+    data = snapshot()
+    data.cameras[0].imageObjective = "identify"
+    data.cameras[0].targetDistanceM = None
+    data.cameras[0].eventActions = ["external_siren"]
+    data.estimate.bom[0].quantity = 17
+    def unexpected_recalculation(*args, **kwargs):
+        raise AssertionError("El exportador no debe recalcular la estimación.")
+    monkeypatch.setattr(quote_engine, "estimate_quote", unexpected_recalculation)
+    response = export_materials(data)
+    book = load_workbook(BytesIO(response.body))
+    details = dict(zip(next(book["Cámaras"].values), list(book["Cámaras"].values)[1]))
+    assert "distancia de identificación" in details["Pendientes"]
+    assert "compatibilidad" in details["Pendientes"]
+    assert list(book["Materiales"].values)[1][2] == 17
